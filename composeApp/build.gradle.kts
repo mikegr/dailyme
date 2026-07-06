@@ -22,6 +22,10 @@ kotlin {
         browser {
             commonWebpackConfig {
                 outputFileName = "dailyme.js"
+                devServer = (devServer ?: org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig.DevServer()).copy(
+                    port = 8081,
+                    open = false,
+                )
             }
         }
         binaries.executable()
