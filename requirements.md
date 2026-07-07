@@ -21,3 +21,5 @@ Running log of requirements as requested by the user, in the order they were giv
     - Show an explicit online/offline status indicator in the UI.
     - Edits made offline are queued and synced automatically once back online.
 12. Add a **Journal** screen: each file in the `journals` folder is shown as a list item entry in a paged list, with each entry showing its rendered markdown content.
+13. Add an **edit button** to each item in the journal list.
+14. **No commit-message prompt**: pressing Save commits automatically with a generated message, instead of requiring the user to enter one first.
