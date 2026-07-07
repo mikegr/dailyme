@@ -3,8 +3,10 @@
 package com.dailyme.app.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -90,6 +93,7 @@ fun JournalScreen(state: AppState, repositoryClient: RepositoryClient) {
                             repositoryClient = repositoryClient,
                             entry = entry,
                             onClick = { state.push(Screen.FileView(entry.path)) },
+                            onEditClick = { state.push(Screen.FileView(entry.path, startInEditMode = true)) },
                         )
                         HorizontalDivider()
                     }
@@ -105,6 +109,7 @@ private fun JournalEntryItem(
     repositoryClient: RepositoryClient,
     entry: GitHubContentItem,
     onClick: () -> Unit,
+    onEditClick: () -> Unit,
 ) {
     var content by remember(entry.path) { mutableStateOf<String?>(null) }
     var error by remember(entry.path) { mutableStateOf<String?>(null) }
@@ -125,10 +130,19 @@ private fun JournalEntryItem(
             .clickable(onClick = onClick)
             .padding(16.dp),
     ) {
-        Text(
-            text = entry.name.removeSuffix(".md").removeSuffix(".MD"),
-            style = MaterialTheme.typography.titleMedium,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = entry.name.removeSuffix(".md").removeSuffix(".MD"),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onEditClick) {
+                Icon(Icons.Default.Edit, contentDescription = "Edit ${entry.name}")
+            }
+        }
         when {
             error != null -> Text(
                 "Error: $error",

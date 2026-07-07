@@ -51,10 +51,10 @@ private data class LoadedFile(
 )
 
 @Composable
-fun FileViewScreen(state: AppState, repositoryClient: RepositoryClient, path: String) {
+fun FileViewScreen(state: AppState, repositoryClient: RepositoryClient, path: String, startInEditMode: Boolean = false) {
     var loaded by remember(path) { mutableStateOf<LoadedFile?>(null) }
     var error by remember(path) { mutableStateOf<String?>(null) }
-    var isEditing by remember(path) { mutableStateOf(false) }
+    var isEditing by remember(path) { mutableStateOf(startInEditMode) }
     var editedText by remember(path) { mutableStateOf("") }
     var isSaving by remember(path) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()

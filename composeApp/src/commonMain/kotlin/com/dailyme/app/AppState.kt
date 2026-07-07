@@ -11,7 +11,7 @@ sealed class Screen {
     data object PendingChanges : Screen()
     data object Journal : Screen()
     data class Browser(val path: String) : Screen()
-    data class FileView(val path: String) : Screen()
+    data class FileView(val path: String, val startInEditMode: Boolean = false) : Screen()
 }
 
 class AppState {

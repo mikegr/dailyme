@@ -110,7 +110,7 @@ fun App() {
 
                             is Screen.Browser -> FileBrowserScreen(state, repositoryClient, credentialsStore, screen.path)
 
-                            is Screen.FileView -> FileViewScreen(state, repositoryClient, screen.path)
+                            is Screen.FileView -> FileViewScreen(state, repositoryClient, screen.path, screen.startInEditMode)
                         }
                     }
                 }
