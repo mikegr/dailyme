@@ -20,3 +20,4 @@ Running log of requirements as requested by the user, in the order they were giv
     - Automatically cache every folder/file the user has visited, so it's available offline with no manual step.
     - Show an explicit online/offline status indicator in the UI.
     - Edits made offline are queued and synced automatically once back online.
+12. Add a **Journal** screen: each file in the `journals` folder is shown as a list item entry in a paged list, with each entry showing its rendered markdown content.
