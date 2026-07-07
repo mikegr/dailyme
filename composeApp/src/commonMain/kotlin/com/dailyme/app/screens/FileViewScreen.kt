@@ -43,6 +43,7 @@ import com.dailyme.app.GitHubApiException
 import com.dailyme.app.MarkdownView
 import com.dailyme.app.RepositoryClient
 import com.dailyme.app.SaveOutcome
+import com.dailyme.app.Screen
 import com.dailyme.app.theme.cyanicTopAppBarColors
 import kotlinx.coroutines.launch
 
@@ -220,6 +221,18 @@ fun FileViewScreen(
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
                             .padding(16.dp),
+                        onLinkClick = { name ->
+                            scope.launch {
+                                val resolved = repositoryClient.resolveWikiLink(
+                                    state.owner,
+                                    state.repo,
+                                    state.branch,
+                                    name,
+                                )
+                                if (resolved != null) state.push(Screen.FileView(resolved))
+                            }
+                        },
+                        onContentClick = { isEditing = true },
                     )
                 }
             }

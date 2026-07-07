@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -16,13 +17,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+/** Tag used on [AnnotatedString] spans for `#tag` and `[[wiki link]]` references. */
+private const val WIKI_LINK_TAG = "wiki_link"
+
+private fun isWikiLinkChar(c: Char) = c.isLetterOrDigit() || c == '_' || c == '-'
 
 private sealed class MdBlock {
     data class Heading(val level: Int, val text: String) : MdBlock()
@@ -50,6 +58,10 @@ private fun parseMarkdown(markdown: String): List<MdBlock> {
     while (i < lines.size) {
         val line = lines[i]
         val trimmed = line.trim()
+        val headingHashes = trimmed.takeWhile { it == '#' }
+        // A heading is "#" (up to 6) followed by a space; "#tag" with no space is a wiki-link tag.
+        val isHeading = headingHashes.isNotEmpty() && headingHashes.length <= 6 &&
+            (headingHashes.length == trimmed.length || trimmed[headingHashes.length] == ' ')
 
         when {
             trimmed.startsWith("```") -> {
@@ -63,10 +75,9 @@ private fun parseMarkdown(markdown: String): List<MdBlock> {
                 blocks.add(MdBlock.CodeBlock(code.toString().trimEnd('\n')))
             }
 
-            trimmed.startsWith("#") -> {
+            isHeading -> {
                 flushParagraph()
-                val level = trimmed.takeWhile { it == '#' }.length.coerceIn(1, 6)
-                blocks.add(MdBlock.Heading(level, trimmed.dropWhile { it == '#' }.trim()))
+                blocks.add(MdBlock.Heading(headingHashes.length, trimmed.drop(headingHashes.length).trim()))
                 orderedIndex = 1
             }
 
@@ -157,6 +168,24 @@ private fun renderInline(text: String): AnnotatedString = buildAnnotatedString {
                 }
             }
 
+            text.startsWith("[[", i) -> {
+                val close = text.indexOf("]]", i + 2)
+                if (close == -1) {
+                    append(text[i])
+                    i++
+                } else {
+                    val name = text.substring(i + 2, close).trim()
+                    pushStringAnnotation(WIKI_LINK_TAG, name)
+                    withStyle(
+                        SpanStyle(color = Color(0xFF3873E8), textDecoration = TextDecoration.Underline)
+                    ) {
+                        append(name)
+                    }
+                    pop()
+                    i = close + 2
+                }
+            }
+
             text.startsWith("[", i) -> {
                 val closeBracket = text.indexOf("]", i + 1)
                 val openParen = if (closeBracket != -1) closeBracket + 1 else -1
@@ -180,6 +209,20 @@ private fun renderInline(text: String): AnnotatedString = buildAnnotatedString {
                 }
             }
 
+            text[i] == '#' && i + 1 < text.length && isWikiLinkChar(text[i + 1]) -> {
+                var end = i + 1
+                while (end < text.length && isWikiLinkChar(text[end])) end++
+                val name = text.substring(i + 1, end)
+                pushStringAnnotation(WIKI_LINK_TAG, name)
+                withStyle(
+                    SpanStyle(color = Color(0xFF3873E8), textDecoration = TextDecoration.Underline)
+                ) {
+                    append("#$name")
+                }
+                pop()
+                i = end
+            }
+
             else -> {
                 append(text[i])
                 i++
@@ -188,9 +231,39 @@ private fun renderInline(text: String): AnnotatedString = buildAnnotatedString {
     }
 }
 
+/**
+ * [Text] replacement that dispatches taps on `#tag`/`[[wiki link]]` spans to [onLinkClick], and
+ * any other tap within the text to [onContentClick] (so callers can still treat the text as one
+ * big "open"/"edit" target without it being swallowed by the link's own tap handling).
+ */
 @Composable
-fun MarkdownView(markdown: String, modifier: Modifier = Modifier) {
+private fun MarkdownInlineText(
+    text: AnnotatedString,
+    style: TextStyle,
+    onLinkClick: (String) -> Unit,
+    onContentClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ClickableText(
+        text = text,
+        style = style,
+        modifier = modifier,
+        onClick = { offset ->
+            val link = text.getStringAnnotations(WIKI_LINK_TAG, offset, offset).firstOrNull()
+            if (link != null) onLinkClick(link.item) else onContentClick()
+        },
+    )
+}
+
+@Composable
+fun MarkdownView(
+    markdown: String,
+    modifier: Modifier = Modifier,
+    onLinkClick: (String) -> Unit = {},
+    onContentClick: () -> Unit = {},
+) {
     val blocks = remember(markdown) { parseMarkdown(markdown) }
+    val baseColor = LocalContentColor.current
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         for (block in blocks) {
             when (block) {
@@ -201,15 +274,21 @@ fun MarkdownView(markdown: String, modifier: Modifier = Modifier) {
                         3 -> 20.sp
                         else -> 18.sp
                     }
-                    Text(
+                    MarkdownInlineText(
                         text = renderInline(block.text),
-                        fontSize = size,
-                        fontWeight = FontWeight.Bold,
+                        style = TextStyle(fontSize = size, fontWeight = FontWeight.Bold, color = baseColor),
+                        onLinkClick = onLinkClick,
+                        onContentClick = onContentClick,
                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                     )
                 }
 
-                is MdBlock.Paragraph -> Text(text = renderInline(block.text), fontSize = 16.sp)
+                is MdBlock.Paragraph -> MarkdownInlineText(
+                    text = renderInline(block.text),
+                    style = TextStyle(fontSize = 16.sp, color = baseColor),
+                    onLinkClick = onLinkClick,
+                    onContentClick = onContentClick,
+                )
 
                 is MdBlock.CodeBlock -> Text(
                     text = block.code,
@@ -227,7 +306,12 @@ fun MarkdownView(markdown: String, modifier: Modifier = Modifier) {
                         modifier = Modifier.width(24.dp),
                         fontSize = 16.sp,
                     )
-                    Text(text = renderInline(block.text), fontSize = 16.sp)
+                    MarkdownInlineText(
+                        text = renderInline(block.text),
+                        style = TextStyle(fontSize = 16.sp, color = baseColor),
+                        onLinkClick = onLinkClick,
+                        onContentClick = onContentClick,
+                    )
                 }
 
                 is MdBlock.Quote -> Row(
@@ -236,10 +320,14 @@ fun MarkdownView(markdown: String, modifier: Modifier = Modifier) {
                         .background(Color(0x14000000))
                         .padding(8.dp),
                 ) {
-                    Text(
+                    MarkdownInlineText(
                         text = renderInline(block.text),
-                        fontStyle = FontStyle.Italic,
-                        color = LocalContentColor.current.copy(alpha = 0.8f),
+                        style = TextStyle(
+                            fontStyle = FontStyle.Italic,
+                            color = baseColor.copy(alpha = 0.8f),
+                        ),
+                        onLinkClick = onLinkClick,
+                        onContentClick = onContentClick,
                     )
                 }
 

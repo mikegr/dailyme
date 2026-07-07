@@ -87,6 +87,24 @@ class RepositoryClient(
         )
     }
 
+    /**
+     * Resolves a `#tag` or `[[wiki link]]` reference to a file path, checking the `journals`
+     * folder first and then `pages`. Returns null if no matching file exists in either.
+     */
+    suspend fun resolveWikiLink(owner: String, repo: String, branch: String, name: String): String? {
+        for (folder in listOf("journals", "pages")) {
+            val path = "$folder/$name.md"
+            val found = try {
+                getFile(owner, repo, branch, path)
+                true
+            } catch (e: Exception) {
+                false
+            }
+            if (found) return path
+        }
+        return null
+    }
+
     suspend fun saveFile(
         owner: String,
         repo: String,

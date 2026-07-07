@@ -29,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +40,7 @@ import com.dailyme.app.MarkdownView
 import com.dailyme.app.RepositoryClient
 import com.dailyme.app.Screen
 import com.dailyme.app.theme.cyanicTopAppBarColors
+import kotlinx.coroutines.launch
 
 private const val JOURNALS_PATH = "journals"
 
@@ -115,6 +117,7 @@ private fun JournalEntryItem(
 ) {
     var content by remember(entry.path) { mutableStateOf<String?>(null) }
     var error by remember(entry.path) { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(entry.path, state.owner, state.repo, state.branch) {
         error = null
@@ -158,6 +161,18 @@ private fun JournalEntryItem(
             else -> MarkdownView(
                 markdown = content!!,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                onLinkClick = { name ->
+                    scope.launch {
+                        val resolved = repositoryClient.resolveWikiLink(
+                            state.owner,
+                            state.repo,
+                            state.branch,
+                            name,
+                        )
+                        if (resolved != null) state.push(Screen.FileView(resolved))
+                    }
+                },
+                onContentClick = onClick,
             )
         }
     }
