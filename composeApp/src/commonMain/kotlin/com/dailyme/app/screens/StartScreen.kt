@@ -1,11 +1,16 @@
 package com.dailyme.app.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -48,58 +53,67 @@ fun StartScreen(state: AppState, credentialsStore: CredentialsStore, repositoryC
         )
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-    ) {
-        Text("DailyMe", style = MaterialTheme.typography.headlineMedium)
-        Text(
-            text = if (state.isLoggedIn) {
-                "Connected to ${state.owner}/${state.repo}"
-            } else {
-                "Log in to browse and edit a GitHub repository's markdown files."
-            },
-            style = MaterialTheme.typography.bodyMedium,
-        )
-
-        Button(
-            onClick = { state.push(Screen.Browser("")) },
-            enabled = state.isLoggedIn,
-            modifier = Modifier.fillMaxWidth(),
+    Box(modifier = Modifier.fillMaxSize()) {
+        IconButton(
+            onClick = { state.push(Screen.Settings) },
+            modifier = Modifier.align(Alignment.TopEnd),
         ) {
-            Text("Open file browser")
+            Icon(Icons.Default.Settings, contentDescription = "Settings")
         }
 
-        Button(
-            onClick = { state.push(Screen.Journal) },
-            enabled = state.isLoggedIn,
-            modifier = Modifier.fillMaxWidth(),
+        Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         ) {
-            Text("Open journal")
-        }
+            Text("DailyMe", style = MaterialTheme.typography.headlineMedium)
+            Text(
+                text = if (state.isLoggedIn) {
+                    "Connected to ${state.owner}/${state.repo}"
+                } else {
+                    "Log in to browse and edit a GitHub repository's markdown files."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
 
-        if (pendingChanges.isNotEmpty()) {
-            TextButton(
-                onClick = { state.push(Screen.PendingChanges) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("${pendingChanges.size} change(s) waiting to sync")
-            }
-        }
-
-        if (state.isLoggedIn) {
-            OutlinedButton(
-                onClick = { showLogoutConfirm = true },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Log out")
-            }
-        } else {
             Button(
-                onClick = { state.push(Screen.Login) },
+                onClick = { state.push(Screen.Browser("")) },
+                enabled = state.isLoggedIn,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Log in")
+                Text("Open file browser")
+            }
+
+            Button(
+                onClick = { state.push(Screen.Journal) },
+                enabled = state.isLoggedIn,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Open journal")
+            }
+
+            if (pendingChanges.isNotEmpty()) {
+                TextButton(
+                    onClick = { state.push(Screen.PendingChanges) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("${pendingChanges.size} change(s) waiting to sync")
+                }
+            }
+
+            if (state.isLoggedIn) {
+                OutlinedButton(
+                    onClick = { showLogoutConfirm = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Log out")
+                }
+            } else {
+                Button(
+                    onClick = { state.push(Screen.Login) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Log in")
+                }
             }
         }
     }

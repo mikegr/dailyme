@@ -25,6 +25,7 @@ import com.dailyme.app.screens.FileViewScreen
 import com.dailyme.app.screens.JournalScreen
 import com.dailyme.app.screens.LoginScreen
 import com.dailyme.app.screens.PendingChangesScreen
+import com.dailyme.app.screens.SettingsScreen
 import com.dailyme.app.screens.StartScreen
 
 @Composable
@@ -37,6 +38,7 @@ fun App() {
         val offlineCache = remember { OfflineCache(keyValueStore) }
         val pendingChangeQueue = remember { PendingChangeQueue(keyValueStore) }
         val repositoryClient = remember { RepositoryClient(api, offlineCache, pendingChangeQueue) }
+        val appSettings = remember { AppSettings(keyValueStore) }
         val networkMonitor = remember { createNetworkMonitor() }
         val state = remember { AppState() }
         var isRestoringSession by remember { mutableStateOf(true) }
@@ -53,6 +55,7 @@ fun App() {
                 state.isLoggedIn = true
             }
             repositoryClient.refreshPendingChanges()
+            appSettings.ensureLoaded()
             isRestoringSession = false
         }
 
@@ -108,9 +111,11 @@ fun App() {
 
                             is Screen.Journal -> JournalScreen(state, repositoryClient)
 
+                            is Screen.Settings -> SettingsScreen(state, appSettings)
+
                             is Screen.Browser -> FileBrowserScreen(state, repositoryClient, credentialsStore, screen.path)
 
-                            is Screen.FileView -> FileViewScreen(state, repositoryClient, screen.path, screen.startInEditMode)
+                            is Screen.FileView -> FileViewScreen(state, repositoryClient, appSettings, screen.path, screen.startInEditMode)
                         }
                     }
                 }

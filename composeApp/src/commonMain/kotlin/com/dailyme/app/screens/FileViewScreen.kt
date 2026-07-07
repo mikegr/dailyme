@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import com.dailyme.app.AppSettings
 import com.dailyme.app.AppState
 import com.dailyme.app.GitHubApiException
 import com.dailyme.app.MarkdownView
@@ -51,7 +52,13 @@ private data class LoadedFile(
 )
 
 @Composable
-fun FileViewScreen(state: AppState, repositoryClient: RepositoryClient, path: String, startInEditMode: Boolean = false) {
+fun FileViewScreen(
+    state: AppState,
+    repositoryClient: RepositoryClient,
+    appSettings: AppSettings,
+    path: String,
+    startInEditMode: Boolean = false,
+) {
     var loaded by remember(path) { mutableStateOf<LoadedFile?>(null) }
     var error by remember(path) { mutableStateOf<String?>(null) }
     var isEditing by remember(path) { mutableStateOf(startInEditMode) }
@@ -76,7 +83,7 @@ fun FileViewScreen(state: AppState, repositoryClient: RepositoryClient, path: St
 
     fun performSave() {
         val current = loaded ?: return
-        val message = "Update ${path.substringAfterLast('/')} via DailyMe"
+        val message = appSettings.buildCommitMessage(path.substringAfterLast('/'))
         isSaving = true
         scope.launch {
             try {
