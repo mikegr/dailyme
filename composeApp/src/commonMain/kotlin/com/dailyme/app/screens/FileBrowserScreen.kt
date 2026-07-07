@@ -29,20 +29,42 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dailyme.app.AppState
+import com.dailyme.app.CredentialsStore
 import com.dailyme.app.GitHubApi
 import com.dailyme.app.GitHubApiException
 import com.dailyme.app.GitHubContentItem
 import com.dailyme.app.Screen
+import kotlinx.coroutines.launch
 
 @Composable
-fun FileBrowserScreen(state: AppState, api: GitHubApi, path: String) {
+fun FileBrowserScreen(state: AppState, api: GitHubApi, credentialsStore: CredentialsStore, path: String) {
     var items by remember(path) { mutableStateOf<List<GitHubContentItem>?>(null) }
     var error by remember(path) { mutableStateOf<String?>(null) }
+    var showLogoutConfirm by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    if (showLogoutConfirm) {
+        ConfirmDialog(
+            title = "Log out?",
+            text = "You'll need to enter your personal access token again to reconnect.",
+            confirmLabel = "Log out",
+            onConfirm = {
+                showLogoutConfirm = false
+                scope.launch {
+                    credentialsStore.clear()
+                    state.isLoggedIn = false
+                    state.reset()
+                }
+            },
+            onDismiss = { showLogoutConfirm = false },
+        )
+    }
 
     LaunchedEffect(path, state.owner, state.repo, state.branch) {
         error = null
@@ -75,7 +97,7 @@ fun FileBrowserScreen(state: AppState, api: GitHubApi, path: String) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { state.reset() }) {
+                    IconButton(onClick = { showLogoutConfirm = true }) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Disconnect")
                     }
                 },

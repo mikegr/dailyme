@@ -21,11 +21,12 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.dailyme.app.AppState
-import com.dailyme.app.TokenStore
+import com.dailyme.app.CredentialsStore
+import com.dailyme.app.StoredCredentials
 import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(state: AppState, tokenStore: TokenStore, onConnected: () -> Unit) {
+fun LoginScreen(state: AppState, credentialsStore: CredentialsStore, onConnected: () -> Unit) {
     var token by remember { mutableStateOf("") }
     var owner by remember { mutableStateOf(state.owner) }
     var repo by remember { mutableStateOf(state.repo) }
@@ -83,11 +84,21 @@ fun LoginScreen(state: AppState, tokenStore: TokenStore, onConnected: () -> Unit
                     return@Button
                 }
                 error = null
-                state.owner = owner.trim()
-                state.repo = repo.trim()
-                state.branch = branch.ifBlank { "main" }
+                val trimmedOwner = owner.trim()
+                val trimmedRepo = repo.trim()
+                val trimmedBranch = branch.ifBlank { "main" }
+                state.owner = trimmedOwner
+                state.repo = trimmedRepo
+                state.branch = trimmedBranch
                 scope.launch {
-                    tokenStore.setToken(token)
+                    credentialsStore.save(
+                        StoredCredentials(
+                            token = token,
+                            owner = trimmedOwner,
+                            repo = trimmedRepo,
+                            branch = trimmedBranch,
+                        )
+                    )
                     onConnected()
                 }
             },

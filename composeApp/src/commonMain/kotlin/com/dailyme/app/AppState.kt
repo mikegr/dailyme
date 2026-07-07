@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 sealed class Screen {
+    data object Start : Screen()
     data object Login : Screen()
     data class Browser(val path: String) : Screen()
     data class FileView(val path: String) : Screen()
@@ -14,9 +15,10 @@ sealed class Screen {
 class AppState {
     var owner by mutableStateOf("mikegr")
     var repo by mutableStateOf("logseq")
-    var branch by mutableStateOf("main")
+    var branch by mutableStateOf("master")
+    var isLoggedIn by mutableStateOf(false)
 
-    val backStack = mutableStateListOf<Screen>(Screen.Login)
+    val backStack = mutableStateListOf<Screen>(Screen.Start)
     val current: Screen get() = backStack.last()
 
     fun push(screen: Screen) {
@@ -29,6 +31,6 @@ class AppState {
 
     fun reset() {
         backStack.clear()
-        backStack.add(Screen.Login)
+        backStack.add(Screen.Start)
     }
 }
