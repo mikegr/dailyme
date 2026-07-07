@@ -2,6 +2,7 @@
 
 package com.dailyme.app.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -171,7 +172,11 @@ fun FileViewScreen(
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                 )
 
-                else -> Column(modifier = Modifier.fillMaxSize()) {
+                else -> Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(onClick = { isEditing = true }),
+                ) {
                     val statusText = when {
                         loaded?.hasPendingChange == true -> "Not yet synced to GitHub"
                         loaded?.isFromCache == true -> "Showing cached copy (offline)"
