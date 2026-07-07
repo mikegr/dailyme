@@ -4,8 +4,6 @@ import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.sp
 import dailyme.composeapp.generated.resources.Res
 import dailyme.composeapp.generated.resources.inter_medium
@@ -13,8 +11,6 @@ import dailyme.composeapp.generated.resources.inter_regular
 import dailyme.composeapp.generated.resources.montserrat_bold
 import dailyme.composeapp.generated.resources.montserrat_semibold
 import org.jetbrains.compose.resources.Font
-
-private fun Float.em(): TextUnit = TextUnit(this, TextUnitType.Em)
 
 /**
  * Typography built from DESIGN.md's scale: Montserrat for display/navigational
@@ -41,7 +37,7 @@ fun cyanicTypography(): Typography {
             fontWeight = FontWeight.Bold,
             fontSize = 28.sp,
             lineHeight = 34.sp,
-            letterSpacing = (-0.02f).em(),
+            letterSpacing = (-0.56).sp,
         ),
         headlineMedium = base.headlineMedium.copy(
             fontFamily = montserrat,
@@ -59,7 +55,7 @@ fun cyanicTypography(): Typography {
             fontWeight = FontWeight.Medium,
             fontSize = 13.sp,
             lineHeight = 18.sp,
-            letterSpacing = 0.01f.em(),
+            letterSpacing = 0.13.sp,
         ),
         bodyMedium = base.bodyMedium.copy(
             fontFamily = inter,
@@ -80,17 +76,19 @@ fun cyanicTypography(): Typography {
             fontWeight = FontWeight.Bold,
             fontSize = 11.sp,
             lineHeight = 16.sp,
-            letterSpacing = 0.08f.em(),
+            letterSpacing = 0.88.sp,
         ),
         labelMedium = base.labelMedium.copy(
             fontFamily = montserrat,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 0.08f.em(),
+            fontSize = 12.sp,
+            letterSpacing = 0.96.sp,
         ),
         labelSmall = base.labelSmall.copy(
             fontFamily = montserrat,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 0.08f.em(),
+            fontSize = 11.sp,
+            letterSpacing = 0.88.sp,
         ),
     )
 }

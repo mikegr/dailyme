@@ -32,3 +32,5 @@ Running log of requirements as requested by the user, in the order they were giv
 21. Serve reads from the **offline cache** whenever a cached copy exists (cache-first, not just an offline fallback), and on startup check the branch's latest commit — clearing the entire cache if it has moved on since last time.
 22. Support **hyperlinks** in rendered markdown: `#tag` and `[[wiki link]]` syntax. Make them clickable, opening the matching file (by name) from the `journals` or `pages` folder.
 23. Disambiguate `#` usages: a `#tag` link has no space between the `#` and the text, while a markdown **header** requires a space after the `#`(s).
+24. The hardware back button should behave like the toolbar back arrow, dismissing the current screen rather than closing the app.
+25. Integrate **Compose Multiplatform Navigation 3** to manage the app's backstack, replacing the custom `Screen`/`AppState` backstack switching.

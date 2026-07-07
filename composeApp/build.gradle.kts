@@ -18,7 +18,7 @@ kotlin {
 
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        moduleName = "dailyme"
+        outputModuleName.set("dailyme")
         browser {
             commonWebpackConfig {
                 outputFileName = "dailyme.js"
@@ -40,6 +40,7 @@ kotlin {
                 implementation(compose.materialIconsExtended)
                 implementation(compose.ui)
                 implementation(compose.components.resources)
+                implementation(libs.androidx.navigation3.ui)
                 implementation(libs.ktor.client.core)
                 implementation(libs.ktor.client.content.negotiation)
                 implementation(libs.ktor.serialization.kotlinx.json)

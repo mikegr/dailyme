@@ -21,6 +21,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.ui.NavDisplay
 import com.dailyme.app.screens.FileBrowserScreen
 import com.dailyme.app.screens.FileViewScreen
 import com.dailyme.app.screens.JournalScreen
@@ -110,26 +112,45 @@ fun App() {
                         }
                     }
 
-                    Box(modifier = Modifier.weight(1f).fillMaxSize()) {
-                        when (val screen = state.current) {
-                            is Screen.Start -> StartScreen(state, credentialsStore, repositoryClient)
+                    NavDisplay(
+                        modifier = Modifier.weight(1f).fillMaxSize(),
+                        backStack = state.backStack,
+                        onBack = { state.pop() },
+                        entryProvider = { screen ->
+                            when (screen) {
+                                is Screen.Start -> NavEntry(screen) {
+                                    StartScreen(state, credentialsStore, repositoryClient)
+                                }
 
-                            is Screen.Login -> LoginScreen(state, credentialsStore) {
-                                state.isLoggedIn = true
-                                state.pop()
+                                is Screen.Login -> NavEntry(screen) {
+                                    LoginScreen(state, credentialsStore) {
+                                        state.isLoggedIn = true
+                                        state.pop()
+                                    }
+                                }
+
+                                is Screen.PendingChanges -> NavEntry(screen) {
+                                    PendingChangesScreen(state, repositoryClient)
+                                }
+
+                                is Screen.Journal -> NavEntry(screen) {
+                                    JournalScreen(state, repositoryClient)
+                                }
+
+                                is Screen.Settings -> NavEntry(screen) {
+                                    SettingsScreen(state, appSettings)
+                                }
+
+                                is Screen.Browser -> NavEntry(screen) {
+                                    FileBrowserScreen(state, repositoryClient, credentialsStore, screen.path)
+                                }
+
+                                is Screen.FileView -> NavEntry(screen) {
+                                    FileViewScreen(state, repositoryClient, appSettings, screen.path, screen.startInEditMode)
+                                }
                             }
-
-                            is Screen.PendingChanges -> PendingChangesScreen(state, repositoryClient)
-
-                            is Screen.Journal -> JournalScreen(state, repositoryClient)
-
-                            is Screen.Settings -> SettingsScreen(state, appSettings)
-
-                            is Screen.Browser -> FileBrowserScreen(state, repositoryClient, credentialsStore, screen.path)
-
-                            is Screen.FileView -> FileViewScreen(state, repositoryClient, appSettings, screen.path, screen.startInEditMode)
-                        }
-                    }
+                        },
+                    )
                 }
             }
         }
