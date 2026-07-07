@@ -9,7 +9,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,13 +22,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dailyme.app.AppState
 import com.dailyme.app.CredentialsStore
+import com.dailyme.app.RepositoryClient
 import com.dailyme.app.Screen
 import kotlinx.coroutines.launch
 
 @Composable
-fun StartScreen(state: AppState, credentialsStore: CredentialsStore) {
+fun StartScreen(state: AppState, credentialsStore: CredentialsStore, repositoryClient: RepositoryClient) {
     val scope = rememberCoroutineScope()
     var showLogoutConfirm by remember { mutableStateOf(false) }
+    val pendingChanges by repositoryClient.pendingChangeList.collectAsState()
 
     if (showLogoutConfirm) {
         ConfirmDialog(
@@ -64,6 +68,15 @@ fun StartScreen(state: AppState, credentialsStore: CredentialsStore) {
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Open file browser")
+        }
+
+        if (pendingChanges.isNotEmpty()) {
+            TextButton(
+                onClick = { state.push(Screen.PendingChanges) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("${pendingChanges.size} change(s) waiting to sync")
+            }
         }
 
         if (state.isLoggedIn) {
