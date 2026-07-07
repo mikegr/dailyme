@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import com.dailyme.app.theme.DailyMeTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,7 +31,7 @@ import com.dailyme.app.screens.StartScreen
 
 @Composable
 fun App() {
-    MaterialTheme {
+    DailyMeTheme {
         val credentialsStore = remember { createCredentialsStore() }
         val client = remember { createHttpClient() }
         val api = remember { GitHubApi(client) { credentialsStore.load()?.token } }

@@ -26,3 +26,4 @@ Running log of requirements as requested by the user, in the order they were giv
 15. Add a **Settings screen**, accessible from the Start screen, that lets the user change the auto-commit message (used in place of the fixed default from #14).
 16. Tapping the rendered file content switches to edit mode, same as tapping the edit icon.
 17. Swap the order of the save and view (preview) icons, and add a confirmation dialog before switching to view mode while editing, since that discards unsaved changes.
+18. Apply the design system defined in **DESIGN.md** ("Cyanic Studio" — dark, turquoise/cyan glassmorphism, Montserrat + Inter) across the app.
