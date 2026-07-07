@@ -9,14 +9,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -27,7 +25,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,8 +57,6 @@ fun FileViewScreen(state: AppState, repositoryClient: RepositoryClient, path: St
     var isEditing by remember(path) { mutableStateOf(false) }
     var editedText by remember(path) { mutableStateOf("") }
     var isSaving by remember(path) { mutableStateOf(false) }
-    var showCommitDialog by remember(path) { mutableStateOf(false) }
-    var commitMessage by remember(path) { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -81,9 +76,8 @@ fun FileViewScreen(state: AppState, repositoryClient: RepositoryClient, path: St
 
     fun performSave() {
         val current = loaded ?: return
-        val message = commitMessage.ifBlank { "Update ${path.substringAfterLast('/')} via DailyMe" }
+        val message = "Update ${path.substringAfterLast('/')} via DailyMe"
         isSaving = true
-        showCommitDialog = false
         scope.launch {
             try {
                 val outcome = repositoryClient.saveFile(
@@ -107,37 +101,12 @@ fun FileViewScreen(state: AppState, repositoryClient: RepositoryClient, path: St
                     }
                 }
                 isEditing = false
-                commitMessage = ""
             } catch (e: Exception) {
                 snackbarHostState.showSnackbar("Save failed: ${e.message}")
             } finally {
                 isSaving = false
             }
         }
-    }
-
-    if (showCommitDialog) {
-        AlertDialog(
-            onDismissRequest = { showCommitDialog = false },
-            title = { Text("Commit changes") },
-            text = {
-                OutlinedTextField(
-                    value = commitMessage,
-                    onValueChange = { commitMessage = it },
-                    label = { Text("Commit message") },
-                    placeholder = { Text("Update ${path.substringAfterLast('/')} via DailyMe") },
-                    singleLine = false,
-                    keyboardOptions = KeyboardOptions.Default,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { performSave() }) { Text("Commit") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCommitDialog = false }) { Text("Cancel") }
-            },
-        )
     }
 
     Scaffold(
@@ -153,7 +122,7 @@ fun FileViewScreen(state: AppState, repositoryClient: RepositoryClient, path: St
                 actions = {
                     if (loaded != null && !isSaving) {
                         if (isEditing) {
-                            IconButton(onClick = { showCommitDialog = true }) {
+                            IconButton(onClick = { performSave() }) {
                                 Icon(Icons.Default.Save, contentDescription = "Save")
                             }
                             IconButton(onClick = {
