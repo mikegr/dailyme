@@ -65,6 +65,7 @@ fun FileViewScreen(
     var isEditing by remember(path) { mutableStateOf(startInEditMode) }
     var editedText by remember(path) { mutableStateOf("") }
     var isSaving by remember(path) { mutableStateOf(false) }
+    var showDiscardConfirm by remember(path) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -117,6 +118,24 @@ fun FileViewScreen(
         }
     }
 
+    fun discardEdits() {
+        editedText = loaded?.content ?: editedText
+        isEditing = false
+    }
+
+    if (showDiscardConfirm) {
+        ConfirmDialog(
+            title = "Discard changes?",
+            text = "Your edits haven't been saved. Switching to preview will throw them away.",
+            confirmLabel = "Discard",
+            onConfirm = {
+                showDiscardConfirm = false
+                discardEdits()
+            },
+            onDismiss = { showDiscardConfirm = false },
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -130,14 +149,17 @@ fun FileViewScreen(
                 actions = {
                     if (loaded != null && !isSaving) {
                         if (isEditing) {
-                            IconButton(onClick = { performSave() }) {
-                                Icon(Icons.Default.Save, contentDescription = "Save")
-                            }
                             IconButton(onClick = {
-                                editedText = loaded?.content ?: editedText
-                                isEditing = false
+                                if (editedText != loaded?.content) {
+                                    showDiscardConfirm = true
+                                } else {
+                                    discardEdits()
+                                }
                             }) {
                                 Icon(Icons.Default.Visibility, contentDescription = "Preview")
+                            }
+                            IconButton(onClick = { performSave() }) {
+                                Icon(Icons.Default.Save, contentDescription = "Save")
                             }
                         } else {
                             IconButton(onClick = { isEditing = true }) {
