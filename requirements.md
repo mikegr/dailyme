@@ -29,3 +29,4 @@ Running log of requirements as requested by the user, in the order they were giv
 18. Apply the design system defined in **DESIGN.md** ("Cyanic Studio" — dark, turquoise/cyan glassmorphism, Montserrat + Inter) across the app.
 19. Toolbar titles should be tinted in the **primary** color, not the default on-surface color.
 20. Add an option on the **Settings** screen to switch between **light and dark mode**.
+21. Serve reads from the **offline cache** whenever a cached copy exists (cache-first, not just an offline fallback), and on startup check the branch's latest commit — clearing the entire cache if it has moved on since last time.

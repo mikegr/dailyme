@@ -203,7 +203,7 @@ fun FileViewScreen(
                 ) {
                     val statusText = when {
                         loaded?.hasPendingChange == true -> "Not yet synced to GitHub"
-                        loaded?.isFromCache == true -> "Showing cached copy (offline)"
+                        loaded?.isFromCache == true -> "Showing cached copy"
                         else -> null
                     }
                     if (statusText != null) {

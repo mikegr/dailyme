@@ -33,4 +33,10 @@ data class GitHubErrorResponse(
     val message: String = "Unknown error",
 )
 
+@Serializable
+data class GitHubBranch(val commit: GitHubBranchCommit)
+
+@Serializable
+data class GitHubBranchCommit(val sha: String)
+
 class GitHubApiException(message: String, val statusCode: Int) : Exception(message)

@@ -32,17 +32,30 @@ class RepositoryClient(
         pendingChanges.all()
     }
 
-    suspend fun listContents(owner: String, repo: String, branch: String, path: String): ListingResult {
-        return try {
-            val fresh = api.listContents(owner, repo, path, branch)
-            cache.putListing(owner, repo, branch, path, fresh)
-            ListingResult(fresh, isFromCache = false)
-        } catch (e: GitHubApiException) {
-            throw e
+    /**
+     * Checks the branch's latest commit on GitHub against the last-known one, clearing the
+     * entire offline cache if it moved on (so stale listings/files aren't served indefinitely).
+     * Silently does nothing if the check fails (e.g. offline) — the existing cache is kept.
+     */
+    suspend fun refreshCacheValidity(owner: String, repo: String, branch: String) {
+        try {
+            val latestSha = api.getLatestCommitSha(owner, repo, branch)
+            val lastKnownSha = cache.getLastKnownCommitSha(owner, repo, branch)
+            if (lastKnownSha != null && lastKnownSha != latestSha) {
+                cache.clear()
+            }
+            cache.setLastKnownCommitSha(owner, repo, branch, latestSha)
         } catch (e: Exception) {
-            val cached = cache.getListing(owner, repo, branch, path)
-            if (cached != null) ListingResult(cached, isFromCache = true) else throw e
+            // Offline or API error — keep using whatever is already cached.
         }
+    }
+
+    suspend fun listContents(owner: String, repo: String, branch: String, path: String): ListingResult {
+        cache.getListing(owner, repo, branch, path)?.let { return ListingResult(it, isFromCache = true) }
+
+        val fresh = api.listContents(owner, repo, path, branch)
+        cache.putListing(owner, repo, branch, path, fresh)
+        return ListingResult(fresh, isFromCache = false)
     }
 
     suspend fun getFile(owner: String, repo: String, branch: String, path: String): LoadedFileResult {
@@ -55,30 +68,23 @@ class RepositoryClient(
             )
         }
 
-        return try {
-            val fresh = api.getFile(owner, repo, path, branch)
-            cache.putFile(owner, repo, branch, path, fresh)
-            LoadedFileResult(
-                sha = fresh.sha,
-                content = fresh.content?.let { decodeBase64Content(it) } ?: "",
-                isFromCache = false,
+        cache.getFile(owner, repo, branch, path)?.let { cached ->
+            return LoadedFileResult(
+                sha = cached.sha,
+                content = cached.content?.let { decodeBase64Content(it) } ?: "",
+                isFromCache = true,
                 hasPendingChange = false,
             )
-        } catch (e: GitHubApiException) {
-            throw e
-        } catch (e: Exception) {
-            val cached = cache.getFile(owner, repo, branch, path)
-            if (cached != null) {
-                LoadedFileResult(
-                    sha = cached.sha,
-                    content = cached.content?.let { decodeBase64Content(it) } ?: "",
-                    isFromCache = true,
-                    hasPendingChange = false,
-                )
-            } else {
-                throw e
-            }
         }
+
+        val fresh = api.getFile(owner, repo, path, branch)
+        cache.putFile(owner, repo, branch, path, fresh)
+        return LoadedFileResult(
+            sha = fresh.sha,
+            content = fresh.content?.let { decodeBase64Content(it) } ?: "",
+            isFromCache = false,
+            hasPendingChange = false,
+        )
     }
 
     suspend fun saveFile(

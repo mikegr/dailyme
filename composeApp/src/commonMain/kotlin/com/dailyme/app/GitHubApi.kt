@@ -43,6 +43,15 @@ class GitHubApi(
         return response.body()
     }
 
+    suspend fun getLatestCommitSha(owner: String, repo: String, branch: String): String {
+        val token = tokenProvider()
+        val response = client.get("$GITHUB_API_BASE/repos/$owner/$repo/branches/$branch") {
+            applyAuth(token)
+        }
+        if (!response.status.isSuccess()) throw githubError(response.status.value, response.bodyAsText())
+        return response.body<GitHubBranch>().commit.sha
+    }
+
     suspend fun updateFile(
         owner: String,
         repo: String,

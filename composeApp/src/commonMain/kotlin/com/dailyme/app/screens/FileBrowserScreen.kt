@@ -144,7 +144,7 @@ fun FileBrowserScreen(state: AppState, repositoryClient: RepositoryClient, crede
                     if (isFromCache) {
                         item {
                             Text(
-                                "Showing cached listing (offline)",
+                                "Showing cached listing",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

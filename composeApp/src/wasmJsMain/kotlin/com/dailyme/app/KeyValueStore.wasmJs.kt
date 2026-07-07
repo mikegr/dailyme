@@ -14,4 +14,16 @@ actual fun createKeyValueStore(): KeyValueStore = object : KeyValueStore {
     override suspend fun remove(key: String) {
         localStorage.removeItem(PREFIX + key)
     }
+
+    override suspend fun keys(prefix: String): List<String> {
+        val result = mutableListOf<String>()
+        for (i in 0 until localStorage.length) {
+            val storedKey = localStorage.key(i) ?: continue
+            if (storedKey.startsWith(PREFIX)) {
+                val key = storedKey.removePrefix(PREFIX)
+                if (key.startsWith(prefix)) result.add(key)
+            }
+        }
+        return result
+    }
 }

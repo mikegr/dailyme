@@ -18,4 +18,7 @@ class AndroidKeyValueStore(context: Context) : KeyValueStore {
     override suspend fun remove(key: String) {
         prefs.edit().remove(key).apply()
     }
+
+    override suspend fun keys(prefix: String): List<String> =
+        prefs.all.keys.filter { it.startsWith(prefix) }
 }

@@ -66,6 +66,9 @@ fun App() {
             repositoryClient.refreshPendingChanges()
             appSettings.ensureLoaded()
             isRestoringSession = false
+            if (stored != null) {
+                repositoryClient.refreshCacheValidity(stored.owner, stored.repo, stored.branch)
+            }
         }
 
         LaunchedEffect(isOnline) {
