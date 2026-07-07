@@ -25,3 +25,4 @@ Running log of requirements as requested by the user, in the order they were giv
 14. **No commit-message prompt**: pressing Save commits automatically with a generated message, instead of requiring the user to enter one first.
 15. Add a **Settings screen**, accessible from the Start screen, that lets the user change the auto-commit message (used in place of the fixed default from #14).
 16. Tapping the rendered file content switches to edit mode, same as tapping the edit icon.
+17. Swap the order of the save and view (preview) icons, and add a confirmation dialog before switching to view mode while editing, since that discards unsaved changes.
