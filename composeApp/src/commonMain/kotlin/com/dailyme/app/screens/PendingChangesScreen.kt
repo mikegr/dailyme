@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.dailyme.app.AppState
 import com.dailyme.app.PendingChange
 import com.dailyme.app.RepositoryClient
+import com.dailyme.app.theme.cyanicTopAppBarColors
 import kotlinx.coroutines.launch
 
 @Composable
@@ -53,6 +54,7 @@ fun PendingChangesScreen(state: AppState, repositoryClient: RepositoryClient) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                colors = cyanicTopAppBarColors(),
             )
         },
     ) { padding ->

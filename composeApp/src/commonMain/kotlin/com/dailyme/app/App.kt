@@ -1,6 +1,7 @@
 package com.dailyme.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import com.dailyme.app.theme.DailyMeTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,25 +28,33 @@ import com.dailyme.app.screens.LoginScreen
 import com.dailyme.app.screens.PendingChangesScreen
 import com.dailyme.app.screens.SettingsScreen
 import com.dailyme.app.screens.StartScreen
+import com.dailyme.app.theme.DailyMeTheme
 
 @Composable
 fun App() {
-    DailyMeTheme {
-        val credentialsStore = remember { createCredentialsStore() }
-        val client = remember { createHttpClient() }
-        val api = remember { GitHubApi(client) { credentialsStore.load()?.token } }
-        val keyValueStore = remember { createKeyValueStore() }
-        val offlineCache = remember { OfflineCache(keyValueStore) }
-        val pendingChangeQueue = remember { PendingChangeQueue(keyValueStore) }
-        val repositoryClient = remember { RepositoryClient(api, offlineCache, pendingChangeQueue) }
-        val appSettings = remember { AppSettings(keyValueStore) }
-        val networkMonitor = remember { createNetworkMonitor() }
-        val state = remember { AppState() }
-        var isRestoringSession by remember { mutableStateOf(true) }
+    val credentialsStore = remember { createCredentialsStore() }
+    val client = remember { createHttpClient() }
+    val api = remember { GitHubApi(client) { credentialsStore.load()?.token } }
+    val keyValueStore = remember { createKeyValueStore() }
+    val offlineCache = remember { OfflineCache(keyValueStore) }
+    val pendingChangeQueue = remember { PendingChangeQueue(keyValueStore) }
+    val repositoryClient = remember { RepositoryClient(api, offlineCache, pendingChangeQueue) }
+    val appSettings = remember { AppSettings(keyValueStore) }
+    val networkMonitor = remember { createNetworkMonitor() }
+    val state = remember { AppState() }
+    var isRestoringSession by remember { mutableStateOf(true) }
 
-        val isOnline by networkMonitor.isOnline.collectAsState()
-        val pendingList by repositoryClient.pendingChangeList.collectAsState()
+    val isOnline by networkMonitor.isOnline.collectAsState()
+    val pendingList by repositoryClient.pendingChangeList.collectAsState()
+    val themeMode by appSettings.themeMode.collectAsState()
 
+    DailyMeTheme(
+        darkTheme = when (themeMode) {
+            ThemeMode.LIGHT -> false
+            ThemeMode.DARK -> true
+            ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        },
+    ) {
         LaunchedEffect(Unit) {
             val stored = credentialsStore.load()
             if (stored != null) {

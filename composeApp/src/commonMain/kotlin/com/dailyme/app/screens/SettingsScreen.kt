@@ -17,6 +17,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -33,12 +36,15 @@ import androidx.compose.ui.unit.dp
 import com.dailyme.app.AppSettings
 import com.dailyme.app.AppState
 import com.dailyme.app.DEFAULT_COMMIT_MESSAGE_TEMPLATE
+import com.dailyme.app.ThemeMode
+import com.dailyme.app.theme.cyanicTopAppBarColors
 import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(state: AppState, appSettings: AppSettings) {
     val currentTemplate by appSettings.commitMessageTemplate.collectAsState()
     var template by remember(currentTemplate) { mutableStateOf(currentTemplate) }
+    val themeMode by appSettings.themeMode.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -52,6 +58,7 @@ fun SettingsScreen(state: AppState, appSettings: AppSettings) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                colors = cyanicTopAppBarColors(),
             )
         },
     ) { padding ->
@@ -59,6 +66,25 @@ fun SettingsScreen(state: AppState, appSettings: AppSettings) {
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Text("Appearance", style = MaterialTheme.typography.titleMedium)
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                ThemeMode.entries.forEachIndexed { index, mode ->
+                    SegmentedButton(
+                        selected = themeMode == mode,
+                        onClick = { scope.launch { appSettings.setThemeMode(mode) } },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = ThemeMode.entries.size),
+                        label = {
+                            Text(
+                                when (mode) {
+                                    ThemeMode.SYSTEM -> "System"
+                                    ThemeMode.LIGHT -> "Light"
+                                    ThemeMode.DARK -> "Dark"
+                                },
+                            )
+                        },
+                    )
+                }
+            }
             Text("Auto-commit message", style = MaterialTheme.typography.titleMedium)
             Text(
                 "Used automatically whenever you save a file. Use {file} as a placeholder for the file name.",

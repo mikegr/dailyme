@@ -55,3 +55,46 @@ object CyanicColors {
     /** Neon Cyan glow used for active toggles, cursor, and interactive "glow" effects. */
     val GlowCyan = Color(0xFF00F5FF)
 }
+
+/**
+ * Light complement to [CyanicColors]. DESIGN.md only specifies a dark palette, so this
+ * derives a light scheme from the same teal/turquoise tonal family (following Material 3's
+ * convention that a light theme's primary equals the dark theme's inversePrimary, and vice versa).
+ */
+object CyanicLightColors {
+    val Surface = Color(0xFFF5FAF9)
+    val SurfaceDim = Color(0xFFD5DBD9)
+    val SurfaceBright = Color(0xFFF5FAF9)
+    val SurfaceContainerLowest = Color(0xFFFFFFFF)
+    val SurfaceContainerLow = Color(0xFFEFF4F3)
+    val SurfaceContainer = Color(0xFFE9EFED)
+    val SurfaceContainerHigh = Color(0xFFE3E9E7)
+    val SurfaceContainerHighest = Color(0xFFDDE3E1)
+    val OnSurface = Color(0xFF171D1C)
+    val OnSurfaceVariant = Color(0xFF3F4947)
+    val InverseSurface = Color(0xFF2B3230)
+    val InverseOnSurface = Color(0xFFECF2EF)
+    val Outline = Color(0xFF6F7977)
+    val OutlineVariant = Color(0xFFBFC9C6)
+    val SurfaceTint = Color(0xFF006A62)
+    val Primary = Color(0xFF006A62)
+    val OnPrimary = Color(0xFFFFFFFF)
+    val PrimaryContainer = Color(0xFFA0F2E4)
+    val OnPrimaryContainer = Color(0xFF00201D)
+    val InversePrimary = Color(0xFF66FDEC)
+    val Secondary = Color(0xFF006A6A)
+    val OnSecondary = Color(0xFFFFFFFF)
+    val SecondaryContainer = Color(0xFFB3EBEB)
+    val OnSecondaryContainer = Color(0xFF002020)
+    val Tertiary = Color(0xFF00696D)
+    val OnTertiary = Color(0xFFFFFFFF)
+    val TertiaryContainer = Color(0xFF9EEFF4)
+    val OnTertiaryContainer = Color(0xFF002021)
+    val Error = Color(0xFFBA1A1A)
+    val OnError = Color(0xFFFFFFFF)
+    val ErrorContainer = Color(0xFFFFDAD6)
+    val OnErrorContainer = Color(0xFF410002)
+    val Background = Color(0xFFF5FAF9)
+    val OnBackground = Color(0xFF171D1C)
+    val SurfaceVariant = Color(0xFFDAE5E2)
+}

@@ -43,6 +43,7 @@ import com.dailyme.app.GitHubApiException
 import com.dailyme.app.MarkdownView
 import com.dailyme.app.RepositoryClient
 import com.dailyme.app.SaveOutcome
+import com.dailyme.app.theme.cyanicTopAppBarColors
 import kotlinx.coroutines.launch
 
 private data class LoadedFile(
@@ -168,6 +169,7 @@ fun FileViewScreen(
                         }
                     }
                 },
+                colors = cyanicTopAppBarColors(),
             )
         },
     ) { padding ->

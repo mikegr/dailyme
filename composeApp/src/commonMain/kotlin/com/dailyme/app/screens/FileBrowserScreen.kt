@@ -42,6 +42,7 @@ import com.dailyme.app.GitHubApiException
 import com.dailyme.app.GitHubContentItem
 import com.dailyme.app.RepositoryClient
 import com.dailyme.app.Screen
+import com.dailyme.app.theme.cyanicTopAppBarColors
 import kotlinx.coroutines.launch
 
 @Composable
@@ -123,6 +124,7 @@ fun FileBrowserScreen(state: AppState, repositoryClient: RepositoryClient, crede
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Disconnect")
                     }
                 },
+                colors = cyanicTopAppBarColors(),
             )
         },
     ) { padding ->

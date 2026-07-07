@@ -38,6 +38,7 @@ import com.dailyme.app.GitHubContentItem
 import com.dailyme.app.MarkdownView
 import com.dailyme.app.RepositoryClient
 import com.dailyme.app.Screen
+import com.dailyme.app.theme.cyanicTopAppBarColors
 
 private const val JOURNALS_PATH = "journals"
 
@@ -68,6 +69,7 @@ fun JournalScreen(state: AppState, repositoryClient: RepositoryClient) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                colors = cyanicTopAppBarColors(),
             )
         },
     ) { padding ->
