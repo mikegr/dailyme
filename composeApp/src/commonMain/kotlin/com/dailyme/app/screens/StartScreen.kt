@@ -70,6 +70,14 @@ fun StartScreen(state: AppState, credentialsStore: CredentialsStore, repositoryC
             Text("Open file browser")
         }
 
+        Button(
+            onClick = { state.push(Screen.Journal) },
+            enabled = state.isLoggedIn,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Open journal")
+        }
+
         if (pendingChanges.isNotEmpty()) {
             TextButton(
                 onClick = { state.push(Screen.PendingChanges) },

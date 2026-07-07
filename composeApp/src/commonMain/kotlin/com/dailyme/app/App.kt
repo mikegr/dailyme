@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dailyme.app.screens.FileBrowserScreen
 import com.dailyme.app.screens.FileViewScreen
+import com.dailyme.app.screens.JournalScreen
 import com.dailyme.app.screens.LoginScreen
 import com.dailyme.app.screens.PendingChangesScreen
 import com.dailyme.app.screens.StartScreen
@@ -104,6 +105,8 @@ fun App() {
                             }
 
                             is Screen.PendingChanges -> PendingChangesScreen(state, repositoryClient)
+
+                            is Screen.Journal -> JournalScreen(state, repositoryClient)
 
                             is Screen.Browser -> FileBrowserScreen(state, repositoryClient, credentialsStore, screen.path)
 
