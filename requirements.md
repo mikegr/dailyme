@@ -15,3 +15,8 @@ Running log of requirements as requested by the user, in the order they were giv
    - a **login** button if the user is not logged in.
 9. **Ask for confirmation** before logging out (confirmation dialog on the logout action).
 10. Add an option in the file browser to **reverse the sort order** of the file/folder listing.
+11. Add **offline capabilities**:
+    - View and edit files while offline (not just read-only).
+    - Automatically cache every folder/file the user has visited, so it's available offline with no manual step.
+    - Show an explicit online/offline status indicator in the UI.
+    - Edits made offline are queued and synced automatically once back online.
