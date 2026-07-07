@@ -17,6 +17,7 @@ class AppState {
     var repo by mutableStateOf("logseq")
     var branch by mutableStateOf("master")
     var isLoggedIn by mutableStateOf(false)
+    var sortDescending by mutableStateOf(false)
 
     val backStack = mutableStateListOf<Screen>(Screen.Start)
     val current: Screen get() = backStack.last()

@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,7 +46,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun FileBrowserScreen(state: AppState, api: GitHubApi, credentialsStore: CredentialsStore, path: String) {
-    var items by remember(path) { mutableStateOf<List<GitHubContentItem>?>(null) }
+    var rawItems by remember(path) { mutableStateOf<List<GitHubContentItem>?>(null) }
     var error by remember(path) { mutableStateOf<String?>(null) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -68,16 +70,23 @@ fun FileBrowserScreen(state: AppState, api: GitHubApi, credentialsStore: Credent
 
     LaunchedEffect(path, state.owner, state.repo, state.branch) {
         error = null
-        items = null
+        rawItems = null
         try {
-            val result = api.listContents(state.owner, state.repo, path, state.branch)
-                .sortedWith(compareBy({ it.type != "dir" }, { it.name.lowercase() }))
-            items = result
+            rawItems = api.listContents(state.owner, state.repo, path, state.branch)
         } catch (e: GitHubApiException) {
             error = e.message
         } catch (e: Exception) {
             error = e.message ?: "Failed to load repository contents."
         }
+    }
+
+    val items = remember(rawItems, state.sortDescending) {
+        val nameComparator = if (state.sortDescending) {
+            compareByDescending<GitHubContentItem> { it.name.lowercase() }
+        } else {
+            compareBy<GitHubContentItem> { it.name.lowercase() }
+        }
+        rawItems?.sortedWith(compareBy<GitHubContentItem> { it.type != "dir" }.then(nameComparator))
     }
 
     Scaffold(
@@ -97,6 +106,16 @@ fun FileBrowserScreen(state: AppState, api: GitHubApi, credentialsStore: Credent
                     }
                 },
                 actions = {
+                    IconButton(onClick = { state.sortDescending = !state.sortDescending }) {
+                        Icon(
+                            imageVector = if (state.sortDescending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                            contentDescription = if (state.sortDescending) {
+                                "Sorted Z to A. Tap to sort A to Z."
+                            } else {
+                                "Sorted A to Z. Tap to sort Z to A."
+                            },
+                        )
+                    }
                     IconButton(onClick = { showLogoutConfirm = true }) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Disconnect")
                     }
