@@ -27,9 +27,9 @@ import com.dailyme.app.screens.FileBrowserScreen
 import com.dailyme.app.screens.FileViewScreen
 import com.dailyme.app.screens.JournalScreen
 import com.dailyme.app.screens.LoginScreen
-import com.dailyme.app.screens.PendingChangesScreen
 import com.dailyme.app.screens.SettingsScreen
 import com.dailyme.app.screens.StartScreen
+import com.dailyme.app.screens.SyncLogScreen
 import com.dailyme.app.theme.DailyMeTheme
 
 @Composable
@@ -40,7 +40,8 @@ fun App() {
     val keyValueStore = remember { createKeyValueStore() }
     val offlineCache = remember { OfflineCache(keyValueStore) }
     val pendingChangeQueue = remember { PendingChangeQueue(keyValueStore) }
-    val repositoryClient = remember { RepositoryClient(api, offlineCache, pendingChangeQueue) }
+    val callLog = remember { CallLog(keyValueStore) }
+    val repositoryClient = remember { RepositoryClient(api, offlineCache, pendingChangeQueue, callLog) }
     val appSettings = remember { AppSettings(keyValueStore) }
     val networkMonitor = remember { createNetworkMonitor() }
     val state = remember { AppState() }
@@ -71,10 +72,11 @@ fun App() {
             if (stored != null) {
                 repositoryClient.refreshCacheValidity(stored.owner, stored.repo, stored.branch)
             }
+            repositoryClient.processDueChanges()
         }
 
         LaunchedEffect(isOnline) {
-            if (isOnline) repositoryClient.syncPendingChanges()
+            if (isOnline) repositoryClient.processDueChanges()
         }
 
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -129,8 +131,8 @@ fun App() {
                                     }
                                 }
 
-                                is Screen.PendingChanges -> NavEntry(screen) {
-                                    PendingChangesScreen(state, repositoryClient)
+                                is Screen.SyncLog -> NavEntry(screen) {
+                                    SyncLogScreen(state, repositoryClient)
                                 }
 
                                 is Screen.Journal -> NavEntry(screen) {

@@ -91,12 +91,18 @@ fun StartScreen(state: AppState, credentialsStore: CredentialsStore, repositoryC
                 Text("Open journal")
             }
 
-            if (pendingChanges.isNotEmpty()) {
+            if (state.isLoggedIn) {
                 TextButton(
-                    onClick = { state.push(Screen.PendingChanges) },
+                    onClick = { state.push(Screen.SyncLog) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("${pendingChanges.size} change(s) waiting to sync")
+                    Text(
+                        if (pendingChanges.isNotEmpty()) {
+                            "${pendingChanges.size} change(s) waiting to sync"
+                        } else {
+                            "Sync activity"
+                        },
+                    )
                 }
             }
 

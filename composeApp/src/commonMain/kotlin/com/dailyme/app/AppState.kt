@@ -8,7 +8,7 @@ import androidx.compose.runtime.setValue
 sealed class Screen {
     data object Start : Screen()
     data object Login : Screen()
-    data object PendingChanges : Screen()
+    data object SyncLog : Screen()
     data object Journal : Screen()
     data object Settings : Screen()
     data class Browser(val path: String) : Screen()
