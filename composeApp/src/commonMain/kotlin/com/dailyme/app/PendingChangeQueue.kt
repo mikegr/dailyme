@@ -19,7 +19,7 @@ data class PendingChange(
     val branch: String,
     val path: String,
     val newContent: String,
-    val baseSha: String,
+    val baseSha: String?,
     val commitMessage: String,
     val attempts: Int = 0,
     val nextAttemptAtMillis: Long = 0L,

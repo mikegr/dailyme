@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,20 +35,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.dailyme.app.AppSettings
 import com.dailyme.app.AppState
 import com.dailyme.app.GitHubContentItem
 import com.dailyme.app.MarkdownView
 import com.dailyme.app.RepositoryClient
 import com.dailyme.app.Screen
 import com.dailyme.app.theme.cyanicTopAppBarColors
+import com.dailyme.app.todayJournalFileName
 import kotlinx.coroutines.launch
 
 private const val JOURNALS_PATH = "journals"
 
 @Composable
-fun JournalScreen(state: AppState, repositoryClient: RepositoryClient) {
+fun JournalScreen(state: AppState, repositoryClient: RepositoryClient, appSettings: AppSettings) {
     var entries by remember { mutableStateOf<List<GitHubContentItem>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var isCreating by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(state.owner, state.repo, state.branch) {
         error = null
@@ -62,6 +67,33 @@ fun JournalScreen(state: AppState, repositoryClient: RepositoryClient) {
         }
     }
 
+    fun openToday() {
+        val fileName = "${todayJournalFileName()}.md"
+        val existingPath = entries?.find { it.name.equals(fileName, ignoreCase = true) }?.path
+        if (existingPath != null) {
+            state.push(Screen.FileView(existingPath, startInEditMode = true))
+            return
+        }
+        isCreating = true
+        scope.launch {
+            try {
+                val path = "$JOURNALS_PATH/$fileName"
+                repositoryClient.saveFile(
+                    owner = state.owner,
+                    repo = state.repo,
+                    branch = state.branch,
+                    path = path,
+                    newContent = "",
+                    baseSha = null,
+                    commitMessage = appSettings.buildCommitMessage(fileName),
+                )
+                state.push(Screen.FileView(path, startInEditMode = true))
+            } finally {
+                isCreating = false
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -69,6 +101,11 @@ fun JournalScreen(state: AppState, repositoryClient: RepositoryClient) {
                 navigationIcon = {
                     IconButton(onClick = { state.pop() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = ::openToday, enabled = !isCreating) {
+                        Icon(Icons.Default.Add, contentDescription = "New journal entry")
                     }
                 },
                 colors = cyanicTopAppBarColors(),

@@ -136,7 +136,7 @@ fun App() {
                                 }
 
                                 is Screen.Journal -> NavEntry(screen) {
-                                    JournalScreen(state, repositoryClient)
+                                    JournalScreen(state, repositoryClient, appSettings)
                                 }
 
                                 is Screen.Settings -> NavEntry(screen) {

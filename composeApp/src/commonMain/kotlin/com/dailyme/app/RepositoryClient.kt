@@ -16,7 +16,7 @@ data class ListingResult(
 )
 
 data class LoadedFileResult(
-    val sha: String,
+    val sha: String?,
     val content: String,
     val isFromCache: Boolean,
     val hasPendingChange: Boolean,
@@ -149,7 +149,7 @@ class RepositoryClient(
         branch: String,
         path: String,
         newContent: String,
-        baseSha: String,
+        baseSha: String?,
         commitMessage: String,
     ): SaveOutcome {
         val change = PendingChange(

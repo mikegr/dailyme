@@ -24,7 +24,7 @@ data class GitHubFileContent(
 data class GitHubCommitRequest(
     val message: String,
     val content: String,
-    val sha: String,
+    val sha: String? = null,
     val branch: String? = null,
 )
 

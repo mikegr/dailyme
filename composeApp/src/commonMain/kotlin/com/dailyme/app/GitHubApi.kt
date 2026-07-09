@@ -52,6 +52,7 @@ class GitHubApi(
         return response.body<GitHubBranch>().commit.sha
     }
 
+    /** Updates [path] if [previousSha] is given, or creates it if null. */
     suspend fun updateFile(
         owner: String,
         repo: String,
@@ -59,7 +60,7 @@ class GitHubApi(
         branch: String,
         commitMessage: String,
         newContent: String,
-        previousSha: String,
+        previousSha: String?,
     ) {
         val token = tokenProvider()
         val response = client.put("$GITHUB_API_BASE/repos/$owner/$repo/contents/$path") {

@@ -11,6 +11,9 @@ fun HttpClientConfig<*>.installDailyMeDefaults() {
             Json {
                 ignoreUnknownKeys = true
                 isLenient = true
+                // Omit null fields (e.g. a create-file commit's absent `sha`) from request bodies,
+                // since GitHub's contents API treats a present-but-null sha differently from an absent one.
+                explicitNulls = false
             }
         )
     }

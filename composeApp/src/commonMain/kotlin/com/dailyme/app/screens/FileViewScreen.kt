@@ -48,7 +48,7 @@ import com.dailyme.app.theme.cyanicTopAppBarColors
 import kotlinx.coroutines.launch
 
 private data class LoadedFile(
-    val sha: String,
+    val sha: String?,
     val content: String,
     val isFromCache: Boolean,
     val hasPendingChange: Boolean,

@@ -35,3 +35,4 @@ Running log of requirements as requested by the user, in the order they were giv
 24. The hardware back button should behave like the toolbar back arrow, dismissing the current screen rather than closing the app.
 25. Integrate **Compose Multiplatform Navigation 3** to manage the app's backstack, replacing the custom `Screen`/`AppState` backstack switching.
 26. Add offline support for commits: queue every commit instead of calling the API directly, process the queue asynchronously with a retry back-off strategy on failure, persist queued changes so they retry after the next app start, and add a log screen showing the last calls and the state of the queue.
+27. Add a **+ button** in the Journal screen's toolbar that creates a new file named after the current day in the `journals` directory and opens it in edit mode.
