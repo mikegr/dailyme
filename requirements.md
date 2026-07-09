@@ -38,3 +38,4 @@ Running log of requirements as requested by the user, in the order they were giv
 27. Add a **+ button** in the Journal screen's toolbar that creates a new file named after the current day in the `journals` directory and opens it in edit mode.
 28. Clear the cached folder listing after a file is saved, so newly created entries show up without needing a full cache clear.
 29. Add link support: when the user enters `#` or `[[` while editing, show a popup listing existing pages matching what's typed afterward.
+30. Add a deployment task that deploys the web (wasmJs) build to GitHub Pages at https://mikegr.github.io/dailyme/ (project page — the bare `https://mikegr.github.io/` root would need a separate special `mikegr.github.io` repo, which doesn't exist yet).
