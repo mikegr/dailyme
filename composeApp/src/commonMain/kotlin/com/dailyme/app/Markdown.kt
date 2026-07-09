@@ -30,7 +30,8 @@ import androidx.compose.ui.unit.sp
 /** Tag used on [AnnotatedString] spans for `#tag` and `[[wiki link]]` references. */
 private const val WIKI_LINK_TAG = "wiki_link"
 
-private fun isWikiLinkChar(c: Char) = c.isLetterOrDigit() || c == '_' || c == '-'
+/** What counts as part of a `#tag` name; reused by the editor's link autocomplete. */
+fun isWikiLinkChar(c: Char) = c.isLetterOrDigit() || c == '_' || c == '-'
 
 private sealed class MdBlock {
     data class Heading(val level: Int, val text: String) : MdBlock()

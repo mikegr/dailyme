@@ -139,6 +139,25 @@ class RepositoryClient(
     }
 
     /**
+     * All page names available for `#tag`/`[[wiki link]]` autocompletion: every `.md` file
+     * (extension stripped) under `journals/` and `pages/`, deduplicated. Either folder missing
+     * or unreachable (e.g. offline with nothing cached) is treated as contributing no names.
+     */
+    suspend fun listPageNames(owner: String, repo: String, branch: String): List<String> {
+        val names = mutableSetOf<String>()
+        for (folder in listOf("journals", "pages")) {
+            try {
+                listContents(owner, repo, branch, folder).items
+                    .filter { it.type == "file" && it.name.endsWith(".md", ignoreCase = true) }
+                    .mapTo(names) { it.name.removeSuffix(".md").removeSuffix(".MD") }
+            } catch (e: Exception) {
+                // Folder doesn't exist, or offline with nothing cached — no pages from it.
+            }
+        }
+        return names.sortedBy { it.lowercase() }
+    }
+
+    /**
      * Queues the commit durably first, then makes one immediate attempt so the UI can report
      * success right away when online. If that attempt fails, the change stays queued and is
      * retried automatically in the background with exponential backoff (see [processDueChanges]).
