@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -26,6 +27,10 @@ sealed class SaveOutcome {
     data class Saved(val sha: String) : SaveOutcome()
     data object Queued : SaveOutcome()
 }
+
+data class WikiLinkResolution(val path: String, val created: Boolean)
+
+private val journalNamePattern = Regex("""^\d{4}_\d{2}_\d{2}$""")
 
 private const val BASE_BACKOFF_MILLIS = 5_000L
 private const val MAX_BACKOFF_MILLIS = 10 * 60_000L
@@ -139,6 +144,25 @@ class RepositoryClient(
     }
 
     /**
+     * Resolves a `#tag`/`[[wiki link]]` name to a file path, creating an empty file if it
+     * doesn't exist yet. Names matching the journal date pattern (`yyyy_MM_dd`, same as
+     * `todayJournalFileName()`) are created under `journals/`; everything else under `pages/`.
+     */
+    suspend fun resolveOrCreateWikiLink(
+        owner: String,
+        repo: String,
+        branch: String,
+        name: String,
+        commitMessage: String,
+    ): WikiLinkResolution {
+        resolveWikiLink(owner, repo, branch, name)?.let { return WikiLinkResolution(it, created = false) }
+        val folder = if (journalNamePattern.matches(name)) "journals" else "pages"
+        val path = "$folder/$name.md"
+        saveFile(owner, repo, branch, path, newContent = "", baseSha = null, commitMessage = commitMessage)
+        return WikiLinkResolution(path, created = true)
+    }
+
+    /**
      * All page names available for `#tag`/`[[wiki link]]` autocompletion: every `.md` file
      * (extension stripped) under `journals/` and `pages/`, deduplicated. Either folder missing
      * or unreachable (e.g. offline with nothing cached) is treated as contributing no names.
@@ -181,9 +205,20 @@ class RepositoryClient(
             commitMessage = commitMessage,
         )
         pendingChanges.upsert(change)
-        val sha = attemptChange(change)
+        val sha = attemptQueuedChange(owner, repo, branch, path)
         return if (sha != null) SaveOutcome.Saved(sha) else SaveOutcome.Queued
     }
+
+    /**
+     * Attempts whichever [PendingChange] currently sits at [path], serialized against
+     * [processDueChanges] via [processingLock] so the immediate save here and a background
+     * retry can never both PUT the same path at once (which would 409 on the loser).
+     */
+    private suspend fun attemptQueuedChange(owner: String, repo: String, branch: String, path: String): String? =
+        processingLock.withLock {
+            val current = pendingChanges.find(owner, repo, branch, path) ?: return@withLock null
+            attemptChange(current)
+        }
 
     suspend fun listPendingChanges(): List<PendingChange> = pendingChanges.all()
 
@@ -249,9 +284,18 @@ class RepositoryClient(
                     message = message,
                 )
             )
+            // A create (no baseSha) that 409s means the file already exists — most likely another
+            // in-flight create won the race. Adopt its current sha so the next retry updates it
+            // instead of repeating the same create and 409ing forever.
+            val recoveredSha = if (change.baseSha == null && e is GitHubApiException && e.statusCode == 409) {
+                runCatching { api.getFile(change.owner, change.repo, change.path, change.branch).sha }.getOrNull()
+            } else {
+                null
+            }
             val attempts = change.attempts + 1
             pendingChanges.upsert(
                 change.copy(
+                    baseSha = recoveredSha ?: change.baseSha,
                     attempts = attempts,
                     nextAttemptAtMillis = nowMillis() + backoffMillis(attempts),
                     lastError = message,

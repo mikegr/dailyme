@@ -132,6 +132,7 @@ fun JournalScreen(state: AppState, repositoryClient: RepositoryClient, appSettin
                         JournalEntryItem(
                             state = state,
                             repositoryClient = repositoryClient,
+                            appSettings = appSettings,
                             entry = entry,
                             onClick = { state.push(Screen.FileView(entry.path)) },
                             onEditClick = { state.push(Screen.FileView(entry.path, startInEditMode = true)) },
@@ -148,6 +149,7 @@ fun JournalScreen(state: AppState, repositoryClient: RepositoryClient, appSettin
 private fun JournalEntryItem(
     state: AppState,
     repositoryClient: RepositoryClient,
+    appSettings: AppSettings,
     entry: GitHubContentItem,
     onClick: () -> Unit,
     onEditClick: () -> Unit,
@@ -200,13 +202,14 @@ private fun JournalEntryItem(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 onLinkClick = { name ->
                     scope.launch {
-                        val resolved = repositoryClient.resolveWikiLink(
+                        val resolution = repositoryClient.resolveOrCreateWikiLink(
                             state.owner,
                             state.repo,
                             state.branch,
                             name,
+                            appSettings.buildCommitMessage("$name.md"),
                         )
-                        if (resolved != null) state.push(Screen.FileView(resolved))
+                        state.push(Screen.FileView(resolution.path, startInEditMode = resolution.created))
                     }
                 },
                 onContentClick = onClick,

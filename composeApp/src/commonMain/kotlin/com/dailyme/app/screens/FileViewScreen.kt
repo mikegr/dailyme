@@ -272,13 +272,14 @@ fun FileViewScreen(
                             .padding(16.dp),
                         onLinkClick = { name ->
                             scope.launch {
-                                val resolved = repositoryClient.resolveWikiLink(
+                                val resolution = repositoryClient.resolveOrCreateWikiLink(
                                     state.owner,
                                     state.repo,
                                     state.branch,
                                     name,
+                                    appSettings.buildCommitMessage("$name.md"),
                                 )
-                                if (resolved != null) state.push(Screen.FileView(resolved))
+                                state.push(Screen.FileView(resolution.path, startInEditMode = resolution.created))
                             }
                         },
                         onContentClick = { isEditing = true; activeTrigger = null },
