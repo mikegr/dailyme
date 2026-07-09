@@ -204,6 +204,8 @@ class RepositoryClient(
             )
             val refreshed = api.getFile(change.owner, change.repo, change.path, change.branch)
             cache.putFile(change.owner, change.repo, change.branch, change.path, refreshed)
+            // The parent folder's cached listing may now be missing (or stale for) this file.
+            cache.removeListing(change.owner, change.repo, change.branch, change.path.substringBeforeLast('/', ""))
             pendingChanges.remove(change.owner, change.repo, change.branch, change.path)
             callLog.record(
                 CallLogEntry(

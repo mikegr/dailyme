@@ -33,6 +33,11 @@ class OfflineCache(private val store: KeyValueStore) {
         store.put(listingKey(owner, repo, branch, path), cacheJson.encodeToString(CachedListing(items)))
     }
 
+    /** Drops the cached listing for a single folder, e.g. after saving a file into it. */
+    suspend fun removeListing(owner: String, repo: String, branch: String, path: String) {
+        store.remove(listingKey(owner, repo, branch, path))
+    }
+
     suspend fun getFile(owner: String, repo: String, branch: String, path: String): GitHubFileContent? {
         val raw = store.get(fileKey(owner, repo, branch, path)) ?: return null
         return runCatching { cacheJson.decodeFromString<GitHubFileContent>(raw) }.getOrNull()
