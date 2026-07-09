@@ -3,16 +3,17 @@ package com.dailyme.app.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,11 +55,15 @@ fun StartScreen(state: AppState, credentialsStore: CredentialsStore, repositoryC
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        IconButton(
-            onClick = { state.push(Screen.Settings) },
-            modifier = Modifier.align(Alignment.TopEnd),
-        ) {
-            Icon(Icons.Default.Settings, contentDescription = "Settings")
+        Row(modifier = Modifier.align(Alignment.TopEnd)) {
+            if (state.isLoggedIn) {
+                IconButton(onClick = { showLogoutConfirm = true }) {
+                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Log out")
+                }
+            }
+            IconButton(onClick = { state.push(Screen.Settings) }) {
+                Icon(Icons.Default.Settings, contentDescription = "Settings")
+            }
         }
 
         Column(
@@ -106,14 +111,7 @@ fun StartScreen(state: AppState, credentialsStore: CredentialsStore, repositoryC
                 }
             }
 
-            if (state.isLoggedIn) {
-                OutlinedButton(
-                    onClick = { showLogoutConfirm = true },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Log out")
-                }
-            } else {
+            if (!state.isLoggedIn) {
                 Button(
                     onClick = { state.push(Screen.Login) },
                     modifier = Modifier.fillMaxWidth(),
