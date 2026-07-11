@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import com.dailyme.app.AppLog
 import com.dailyme.app.AppSettings
 import com.dailyme.app.AppState
 import com.dailyme.app.GitHubApiException
@@ -88,8 +89,10 @@ fun FileViewScreen(
             editedText = TextFieldValue(result.content)
         } catch (e: GitHubApiException) {
             error = e.message
+            AppLog.e("Failed to load $path", e)
         } catch (e: Exception) {
             error = e.message ?: "Failed to load file."
+            AppLog.e("Failed to load $path", e)
         }
     }
 
@@ -97,6 +100,7 @@ fun FileViewScreen(
         pageNames = try {
             repositoryClient.listPageNames(state.owner, state.repo, state.branch)
         } catch (e: Exception) {
+            AppLog.e("Failed to load page names for autocomplete", e)
             emptyList()
         }
     }
@@ -129,6 +133,7 @@ fun FileViewScreen(
                 }
                 isEditing = false
             } catch (e: Exception) {
+                AppLog.e("Save failed for $path", e)
                 snackbarHostState.showSnackbar("Save failed: ${e.message}")
             } finally {
                 isSaving = false

@@ -85,6 +85,7 @@ class RepositoryClient(
             cache.setLastKnownCommitSha(owner, repo, branch, latestSha)
         } catch (e: Exception) {
             // Offline or API error — keep using whatever is already cached.
+            AppLog.e("refreshCacheValidity failed for $owner/$repo@$branch", e)
         }
     }
 
@@ -276,6 +277,7 @@ class RepositoryClient(
             } else {
                 e.message ?: "Network error"
             }
+            AppLog.e("Save failed for ${change.path}", e)
             callLog.record(
                 CallLogEntry(
                     timestampMillis = nowMillis(),

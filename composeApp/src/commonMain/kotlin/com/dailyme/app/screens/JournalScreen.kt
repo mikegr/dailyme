@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.dailyme.app.AppLog
 import com.dailyme.app.AppSettings
 import com.dailyme.app.AppState
 import com.dailyme.app.GitHubContentItem
@@ -64,6 +65,7 @@ fun JournalScreen(state: AppState, repositoryClient: RepositoryClient, appSettin
                 .sortedByDescending { it.name }
         } catch (e: Exception) {
             error = e.message ?: "Failed to load journal entries."
+            AppLog.e("Failed to load journal entries", e)
         }
     }
 
@@ -88,6 +90,8 @@ fun JournalScreen(state: AppState, repositoryClient: RepositoryClient, appSettin
                     commitMessage = appSettings.buildCommitMessage(fileName),
                 )
                 state.push(Screen.FileView(path, startInEditMode = true))
+            } catch (e: Exception) {
+                AppLog.e("Failed to create today's journal entry", e)
             } finally {
                 isCreating = false
             }
@@ -165,6 +169,7 @@ private fun JournalEntryItem(
             content = result.content
         } catch (e: Exception) {
             error = e.message ?: "Failed to load entry."
+            AppLog.e("Failed to load journal entry \"${entry.path}\"", e)
         }
     }
 

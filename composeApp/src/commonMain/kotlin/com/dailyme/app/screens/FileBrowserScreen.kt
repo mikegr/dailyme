@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.dailyme.app.AppLog
 import com.dailyme.app.AppState
 import com.dailyme.app.CredentialsStore
 import com.dailyme.app.GitHubApiException
@@ -44,6 +45,8 @@ import com.dailyme.app.RepositoryClient
 import com.dailyme.app.Screen
 import com.dailyme.app.theme.cyanicTopAppBarColors
 import kotlinx.coroutines.launch
+
+private const val TAG = "FileBrowserScreen"
 
 @Composable
 fun FileBrowserScreen(state: AppState, repositoryClient: RepositoryClient, credentialsStore: CredentialsStore, path: String) {
@@ -79,8 +82,10 @@ fun FileBrowserScreen(state: AppState, repositoryClient: RepositoryClient, crede
             isFromCache = result.isFromCache
         } catch (e: GitHubApiException) {
             error = e.message
+            AppLog.e("Failed to load contents of \"$path\"", e)
         } catch (e: Exception) {
             error = e.message ?: "Failed to load repository contents."
+            AppLog.e("Failed to load contents of \"$path\"", e)
         }
     }
 
