@@ -33,6 +33,40 @@ private const val WIKI_LINK_TAG = "wiki_link"
 /** What counts as part of a `#tag` name; reused by the editor's link autocomplete. */
 fun isWikiLinkChar(c: Char) = c.isLetterOrDigit() || c == '_' || c == '-'
 
+/**
+ * Every `#tag`/`[[wiki link]]` name referenced anywhere in [markdown], deduplicated. Mirrors
+ * the link recognition rules in [renderInline] (`[[name]]`, trimmed, or `#name` where name is
+ * a run of [isWikiLinkChar]), but as a plain scan with no Compose dependency, so it can also
+ * be used off the UI thread to find backlinks.
+ */
+fun extractWikiLinkNames(markdown: String): Set<String> {
+    val names = mutableSetOf<String>()
+    var i = 0
+    while (i < markdown.length) {
+        when {
+            markdown.startsWith("[[", i) -> {
+                val close = markdown.indexOf("]]", i + 2)
+                if (close == -1) {
+                    i++
+                } else {
+                    names.add(markdown.substring(i + 2, close).trim())
+                    i = close + 2
+                }
+            }
+
+            markdown[i] == '#' && i + 1 < markdown.length && isWikiLinkChar(markdown[i + 1]) -> {
+                var end = i + 1
+                while (end < markdown.length && isWikiLinkChar(markdown[end])) end++
+                names.add(markdown.substring(i + 1, end))
+                i = end
+            }
+
+            else -> i++
+        }
+    }
+    return names
+}
+
 private sealed class MdBlock {
     data class Heading(val level: Int, val text: String) : MdBlock()
     data class Paragraph(val text: String) : MdBlock()

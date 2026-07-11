@@ -183,6 +183,43 @@ class RepositoryClient(
     }
 
     /**
+     * Paths of every page (under `journals/` or `pages/`, excluding [excludePath] itself) whose
+     * content links back to [targetName] via `#tag` or `[[wiki link]]`. Reads each candidate
+     * file's content (cache-first via [getFile]), so this is only as complete as whatever is
+     * already cached when fully offline — same degradation as [listPageNames].
+     */
+    suspend fun findBacklinks(
+        owner: String,
+        repo: String,
+        branch: String,
+        targetName: String,
+        excludePath: String,
+    ): List<String> {
+        val results = mutableListOf<String>()
+        for (folder in listOf("journals", "pages")) {
+            val items = try {
+                listContents(owner, repo, branch, folder).items
+            } catch (e: Exception) {
+                continue
+            }
+            for (item in items) {
+                if (item.type != "file" || !item.name.endsWith(".md", ignoreCase = true)) continue
+                if (item.path == excludePath) continue
+                val content = try {
+                    getFile(owner, repo, branch, item.path).content
+                } catch (e: Exception) {
+                    AppLog.e("Failed to load \"${item.path}\" while scanning for backlinks", e)
+                    continue
+                }
+                if (targetName in extractWikiLinkNames(content)) {
+                    results.add(item.path)
+                }
+            }
+        }
+        return results.sortedBy { it.substringAfterLast('/').lowercase() }
+    }
+
+    /**
      * Queues the commit durably first, then makes one immediate attempt so the UI can report
      * success right away when online. If that attempt fails, the change stays queued and is
      * retried automatically in the background with exponential backoff (see [processDueChanges]).

@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.dailyme.app.AppLog
 import com.dailyme.app.AppSettings
@@ -76,6 +78,7 @@ fun FileViewScreen(
     var isSaving by remember(path) { mutableStateOf(false) }
     var showDiscardConfirm by remember(path) { mutableStateOf(false) }
     var pageNames by remember(path) { mutableStateOf<List<String>>(emptyList()) }
+    var backlinks by remember(path) { mutableStateOf<List<String>>(emptyList()) }
     var activeTrigger by remember(path) { mutableStateOf<LinkTrigger?>(null) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -101,6 +104,16 @@ fun FileViewScreen(
             repositoryClient.listPageNames(state.owner, state.repo, state.branch)
         } catch (e: Exception) {
             AppLog.e("Failed to load page names for autocomplete", e)
+            emptyList()
+        }
+    }
+
+    LaunchedEffect(path, state.owner, state.repo, state.branch) {
+        val pageName = path.substringAfterLast('/').removeSuffix(".md").removeSuffix(".MD")
+        backlinks = try {
+            repositoryClient.findBacklinks(state.owner, state.repo, state.branch, pageName, excludePath = path)
+        } catch (e: Exception) {
+            AppLog.e("Failed to load backlinks for $path", e)
             emptyList()
         }
     }
@@ -254,6 +267,7 @@ fun FileViewScreen(
                 else -> Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
                         .clickable(onClick = { isEditing = true; activeTrigger = null }),
                 ) {
                     val statusText = when {
@@ -272,8 +286,7 @@ fun FileViewScreen(
                     MarkdownView(
                         markdown = editedText.text,
                         modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
+                            .fillMaxWidth()
                             .padding(16.dp),
                         onLinkClick = { name ->
                             scope.launch {
@@ -289,6 +302,28 @@ fun FileViewScreen(
                         },
                         onContentClick = { isEditing = true; activeTrigger = null },
                     )
+                    if (backlinks.isNotEmpty()) {
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        Text(
+                            "Linked references",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                        for (backlinkPath in backlinks) {
+                            val name = backlinkPath.substringAfterLast('/').removeSuffix(".md").removeSuffix(".MD")
+                            Text(
+                                name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                textDecoration = TextDecoration.Underline,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { state.push(Screen.FileView(backlinkPath)) }
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                        }
+                    }
                 }
             }
         }
