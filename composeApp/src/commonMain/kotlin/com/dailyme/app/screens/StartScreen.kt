@@ -10,10 +10,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,69 +57,80 @@ fun StartScreen(state: AppState, credentialsStore: CredentialsStore, repositoryC
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Row(modifier = Modifier.align(Alignment.TopEnd)) {
+    Scaffold(
+        bottomBar = {
             if (state.isLoggedIn) {
-                IconButton(onClick = { showLogoutConfirm = true }) {
-                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Log out")
+                BottomAppBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+                    TextButton(
+                        onClick = { state.push(Screen.SyncLog) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(
+                            Icons.Default.Sync,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                        Text(
+                            if (pendingChanges.isNotEmpty()) {
+                                "Sync status — ${pendingChanges.size} change(s) waiting"
+                            } else {
+                                "Sync status"
+                            },
+                        )
+                    }
                 }
             }
-            IconButton(onClick = { state.push(Screen.Settings) }) {
-                Icon(Icons.Default.Settings, contentDescription = "Settings")
-            }
-        }
-
-        Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-        ) {
-            Text("DailyMe", style = MaterialTheme.typography.headlineMedium)
-            Text(
-                text = if (state.isLoggedIn) {
-                    "Connected to ${state.owner}/${state.repo}"
-                } else {
-                    "Log in to browse and edit a GitHub repository's markdown files."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-            )
-
-            Button(
-                onClick = { state.push(Screen.Browser("")) },
-                enabled = state.isLoggedIn,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Open file browser")
-            }
-
-            Button(
-                onClick = { state.push(Screen.Journal) },
-                enabled = state.isLoggedIn,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Open journal")
-            }
-
-            if (state.isLoggedIn) {
-                TextButton(
-                    onClick = { state.push(Screen.SyncLog) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        if (pendingChanges.isNotEmpty()) {
-                            "${pendingChanges.size} change(s) waiting to sync"
-                        } else {
-                            "Sync activity"
-                        },
-                    )
+        },
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Row(modifier = Modifier.align(Alignment.TopEnd)) {
+                if (state.isLoggedIn) {
+                    IconButton(onClick = { showLogoutConfirm = true }) {
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Log out")
+                    }
+                }
+                IconButton(onClick = { state.push(Screen.Settings) }) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings")
                 }
             }
 
-            if (!state.isLoggedIn) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+            ) {
+                Text("DailyMe", style = MaterialTheme.typography.headlineMedium)
+                Text(
+                    text = if (state.isLoggedIn) {
+                        "Connected to ${state.owner}/${state.repo}"
+                    } else {
+                        "Log in to browse and edit a GitHub repository's markdown files."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+
                 Button(
-                    onClick = { state.push(Screen.Login) },
+                    onClick = { state.push(Screen.Browser("")) },
+                    enabled = state.isLoggedIn,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Log in")
+                    Text("Open file browser")
+                }
+
+                Button(
+                    onClick = { state.push(Screen.Journal) },
+                    enabled = state.isLoggedIn,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Open journal")
+                }
+
+                if (!state.isLoggedIn) {
+                    Button(
+                        onClick = { state.push(Screen.Login) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Log in")
+                    }
                 }
             }
         }
