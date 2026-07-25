@@ -39,6 +39,7 @@ class RepositoryClient(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val pushLock = Mutex()
     private var repoLabel: String = ""
+    private var isRepositoryReady = false
 
     private val _unpushedCommits = MutableStateFlow<List<CommitInfo>>(emptyList())
     val unpushedCommits: StateFlow<List<CommitInfo>> = _unpushedCommits
@@ -62,6 +63,7 @@ class RepositoryClient(
     suspend fun ensureRepositoryReady(owner: String, repo: String, branch: String) {
         repoLabel = "$owner/$repo"
         localGit.ensureCloned(owner, repo, branch)
+        isRepositoryReady = true
         try {
             when (val result = localGit.pull()) {
                 is PullOutcome.ConflictsNeedResolution -> AppLog.e("Pull couldn't merge for $repoLabel@$branch: ${result.message}")
@@ -207,6 +209,7 @@ class RepositoryClient(
 
     /** Attempts a push if one isn't already in progress; skips (rather than waiting) otherwise. Safe to call concurrently. */
     suspend fun retryPush() {
+        if (!isRepositoryReady) return
         if (!pushLock.tryLock()) return
         try {
             doPush()
@@ -216,7 +219,10 @@ class RepositoryClient(
     }
 
     /** Attempts a push, waiting for any in-progress attempt first, so this and [retryPush] never race. */
-    private suspend fun attemptPushNow(): PushOutcome = pushLock.withLock { doPush() }
+    private suspend fun attemptPushNow(): PushOutcome {
+        if (!isRepositoryReady) return PushOutcome.NothingToPush
+        return pushLock.withLock { doPush() }
+    }
 
     /**
      * Pulls (fetching and auto-merging any remote-only commits) before pushing, so a push
