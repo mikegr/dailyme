@@ -39,19 +39,15 @@ import androidx.compose.ui.unit.dp
 import com.dailyme.app.AppLog
 import com.dailyme.app.AppState
 import com.dailyme.app.CredentialsStore
-import com.dailyme.app.GitHubApiException
 import com.dailyme.app.GitHubContentItem
 import com.dailyme.app.RepositoryClient
 import com.dailyme.app.Screen
 import com.dailyme.app.theme.cyanicTopAppBarColors
 import kotlinx.coroutines.launch
 
-private const val TAG = "FileBrowserScreen"
-
 @Composable
 fun FileBrowserScreen(state: AppState, repositoryClient: RepositoryClient, credentialsStore: CredentialsStore, path: String) {
     var rawItems by remember(path) { mutableStateOf<List<GitHubContentItem>?>(null) }
-    var isFromCache by remember(path) { mutableStateOf(false) }
     var error by remember(path) { mutableStateOf<String?>(null) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -79,10 +75,6 @@ fun FileBrowserScreen(state: AppState, repositoryClient: RepositoryClient, crede
         try {
             val result = repositoryClient.listContents(state.owner, state.repo, state.branch, path)
             rawItems = result.items
-            isFromCache = result.isFromCache
-        } catch (e: GitHubApiException) {
-            error = e.message
-            AppLog.e("Failed to load contents of \"$path\"", e)
         } catch (e: Exception) {
             error = e.message ?: "Failed to load repository contents."
             AppLog.e("Failed to load contents of \"$path\"", e)
@@ -146,16 +138,6 @@ fun FileBrowserScreen(state: AppState, repositoryClient: RepositoryClient, crede
                 items!!.isEmpty() -> Text("This folder is empty.", modifier = Modifier.padding(16.dp))
 
                 else -> LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                    if (isFromCache) {
-                        item {
-                            Text(
-                                "Showing cached listing",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            )
-                        }
-                    }
                     items(items!!, key = { it.path }) { item ->
                         val isMarkdown = item.type == "file" && item.name.endsWith(".md", ignoreCase = true)
                         Row(

@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
 fun StartScreen(state: AppState, credentialsStore: CredentialsStore, repositoryClient: RepositoryClient) {
     val scope = rememberCoroutineScope()
     var showLogoutConfirm by remember { mutableStateOf(false) }
-    val pendingChanges by repositoryClient.pendingChangeList.collectAsState()
+    val unpushedCommits by repositoryClient.unpushedCommits.collectAsState()
 
     if (showLogoutConfirm) {
         ConfirmDialog(
@@ -71,8 +71,8 @@ fun StartScreen(state: AppState, credentialsStore: CredentialsStore, repositoryC
                             modifier = Modifier.padding(end = 8.dp),
                         )
                         Text(
-                            if (pendingChanges.isNotEmpty()) {
-                                "Sync status — ${pendingChanges.size} change(s) waiting"
+                            if (unpushedCommits.isNotEmpty()) {
+                                "Sync status — ${unpushedCommits.size} commit(s) waiting"
                             } else {
                                 "Sync status"
                             },

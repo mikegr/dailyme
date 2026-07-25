@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -20,18 +21,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.dailyme.app.AppLog
 import com.dailyme.app.AppState
 import com.dailyme.app.CredentialsStore
+import com.dailyme.app.RepositoryClient
 import com.dailyme.app.StoredCredentials
 import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(state: AppState, credentialsStore: CredentialsStore, onConnected: () -> Unit) {
+fun LoginScreen(
+    state: AppState,
+    credentialsStore: CredentialsStore,
+    repositoryClient: RepositoryClient,
+    onConnected: () -> Unit,
+) {
     var token by remember { mutableStateOf("") }
     var owner by remember { mutableStateOf(state.owner) }
     var repo by remember { mutableStateOf(state.repo) }
     var branch by remember { mutableStateOf(state.branch) }
     var error by remember { mutableStateOf<String?>(null) }
+    var isConnecting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Column(
@@ -78,6 +87,7 @@ fun LoginScreen(state: AppState, credentialsStore: CredentialsStore, onConnected
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
         Button(
+            enabled = !isConnecting,
             onClick = {
                 if (owner.isBlank() || repo.isBlank() || token.isBlank()) {
                     error = "Owner, repository, and token are required."
@@ -90,21 +100,34 @@ fun LoginScreen(state: AppState, credentialsStore: CredentialsStore, onConnected
                 state.owner = trimmedOwner
                 state.repo = trimmedRepo
                 state.branch = trimmedBranch
+                isConnecting = true
                 scope.launch {
-                    credentialsStore.save(
-                        StoredCredentials(
-                            token = token,
-                            owner = trimmedOwner,
-                            repo = trimmedRepo,
-                            branch = trimmedBranch,
+                    try {
+                        credentialsStore.save(
+                            StoredCredentials(
+                                token = token,
+                                owner = trimmedOwner,
+                                repo = trimmedRepo,
+                                branch = trimmedBranch,
+                            )
                         )
-                    )
-                    onConnected()
+                        repositoryClient.ensureRepositoryReady(trimmedOwner, trimmedRepo, trimmedBranch)
+                        onConnected()
+                    } catch (e: Exception) {
+                        AppLog.e("Failed to clone $trimmedOwner/$trimmedRepo@$trimmedBranch", e)
+                        error = "Couldn't connect: ${e.message}"
+                    } finally {
+                        isConnecting = false
+                    }
                 }
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Connect")
+            if (isConnecting) {
+                CircularProgressIndicator(modifier = Modifier.padding(4.dp))
+            } else {
+                Text("Connect")
+            }
         }
 
         Text(

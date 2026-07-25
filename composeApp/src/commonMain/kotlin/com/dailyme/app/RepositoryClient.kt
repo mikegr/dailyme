@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -11,17 +12,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-data class ListingResult(
-    val items: List<GitHubContentItem>,
-    val isFromCache: Boolean,
-)
+data class ListingResult(val items: List<GitHubContentItem>)
 
-data class LoadedFileResult(
-    val sha: String?,
-    val content: String,
-    val isFromCache: Boolean,
-    val hasPendingChange: Boolean,
-)
+data class LoadedFileResult(val content: String, val hasPendingChange: Boolean)
 
 sealed class SaveOutcome {
     data class Saved(val sha: String) : SaveOutcome()
@@ -30,100 +23,72 @@ sealed class SaveOutcome {
 
 data class WikiLinkResolution(val path: String, val created: Boolean)
 
+class RepositoryFileNotFoundException(path: String) : Exception("File not found: $path")
+
 private val journalNamePattern = Regex("""^\d{4}_\d{2}_\d{2}$""")
 
-private const val BASE_BACKOFF_MILLIS = 5_000L
-private const val MAX_BACKOFF_MILLIS = 10 * 60_000L
 private const val POLL_INTERVAL_MILLIS = 15_000L
 
 @OptIn(ExperimentalTime::class)
 private fun nowMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
-private fun backoffMillis(attempts: Int): Long {
-    if (attempts <= 0) return 0L
-    val shift = (attempts - 1).coerceAtMost(10)
-    return (BASE_BACKOFF_MILLIS shl shift).coerceAtMost(MAX_BACKOFF_MILLIS)
-}
-
 class RepositoryClient(
-    private val api: GitHubApi,
-    private val cache: OfflineCache,
-    private val pendingChanges: PendingChangeQueue,
+    private val localGit: LocalGitRepository,
     private val callLog: CallLog,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val processingLock = Mutex()
+    private val pushLock = Mutex()
+    private var repoLabel: String = ""
 
-    val pendingChangeList: StateFlow<List<PendingChange>> = pendingChanges.changes
+    private val _unpushedCommits = MutableStateFlow<List<CommitInfo>>(emptyList())
+    val unpushedCommits: StateFlow<List<CommitInfo>> = _unpushedCommits
     val callLogEntries: StateFlow<List<CallLogEntry>> = callLog.entries
 
     init {
         scope.launch {
             while (true) {
                 delay(POLL_INTERVAL_MILLIS)
-                processDueChanges()
+                retryPush()
             }
         }
-    }
-
-    suspend fun refreshPendingChanges() {
-        pendingChanges.all()
     }
 
     /**
-     * Checks the branch's latest commit on GitHub against the last-known one, clearing the
-     * entire offline cache if it moved on (so stale listings/files aren't served indefinitely).
-     * Silently does nothing if the check fails (e.g. offline) — the existing cache is kept.
+     * Clones (or opens the existing) local working copy for `$owner/$repo@$branch` and pulls
+     * the latest from origin. A clone failure (bad token, no network, repo doesn't exist)
+     * propagates to the caller; a pull failure is logged and swallowed — the existing local
+     * clone is still usable offline.
      */
-    suspend fun refreshCacheValidity(owner: String, repo: String, branch: String) {
+    suspend fun ensureRepositoryReady(owner: String, repo: String, branch: String) {
+        repoLabel = "$owner/$repo"
+        localGit.ensureCloned(owner, repo, branch)
         try {
-            val latestSha = api.getLatestCommitSha(owner, repo, branch)
-            val lastKnownSha = cache.getLastKnownCommitSha(owner, repo, branch)
-            if (lastKnownSha != null && lastKnownSha != latestSha) {
-                cache.clear()
+            when (val result = localGit.pull()) {
+                is PullOutcome.ConflictsNeedResolution -> AppLog.e("Pull couldn't merge for $repoLabel@$branch: ${result.message}")
+                is PullOutcome.Failed -> AppLog.e("Pull failed for $repoLabel@$branch: ${result.message}")
+                PullOutcome.UpToDate, PullOutcome.FastForwarded, PullOutcome.Merged -> Unit
             }
-            cache.setLastKnownCommitSha(owner, repo, branch, latestSha)
         } catch (e: Exception) {
-            // Offline or API error — keep using whatever is already cached.
-            AppLog.e("refreshCacheValidity failed for $owner/$repo@$branch", e)
+            AppLog.e("Pull failed for $repoLabel@$branch — using existing local clone", e)
+        }
+        refreshUnpushedCommits()
+    }
+
+    private suspend fun refreshUnpushedCommits() {
+        _unpushedCommits.value = try {
+            localGit.unpushedCommits()
+        } catch (e: Exception) {
+            AppLog.e("Failed to list unpushed commits", e)
+            emptyList()
         }
     }
 
-    suspend fun listContents(owner: String, repo: String, branch: String, path: String): ListingResult {
-        cache.getListing(owner, repo, branch, path)?.let { return ListingResult(it, isFromCache = true) }
-
-        val fresh = api.listContents(owner, repo, path, branch)
-        cache.putListing(owner, repo, branch, path, fresh)
-        return ListingResult(fresh, isFromCache = false)
-    }
+    suspend fun listContents(owner: String, repo: String, branch: String, path: String): ListingResult =
+        ListingResult(localGit.listDirectory(path))
 
     suspend fun getFile(owner: String, repo: String, branch: String, path: String): LoadedFileResult {
-        pendingChanges.find(owner, repo, branch, path)?.let { pending ->
-            return LoadedFileResult(
-                sha = pending.baseSha,
-                content = pending.newContent,
-                isFromCache = false,
-                hasPendingChange = true,
-            )
-        }
-
-        cache.getFile(owner, repo, branch, path)?.let { cached ->
-            return LoadedFileResult(
-                sha = cached.sha,
-                content = cached.content?.let { decodeBase64Content(it) } ?: "",
-                isFromCache = true,
-                hasPendingChange = false,
-            )
-        }
-
-        val fresh = api.getFile(owner, repo, path, branch)
-        cache.putFile(owner, repo, branch, path, fresh)
-        return LoadedFileResult(
-            sha = fresh.sha,
-            content = fresh.content?.let { decodeBase64Content(it) } ?: "",
-            isFromCache = false,
-            hasPendingChange = false,
-        )
+        val content = localGit.readFile(path) ?: throw RepositoryFileNotFoundException(path)
+        return LoadedFileResult(content, hasPendingChange = _unpushedCommits.value.isNotEmpty())
     }
 
     /**
@@ -133,13 +98,7 @@ class RepositoryClient(
     suspend fun resolveWikiLink(owner: String, repo: String, branch: String, name: String): String? {
         for (folder in listOf("journals", "pages")) {
             val path = "$folder/$name.md"
-            val found = try {
-                getFile(owner, repo, branch, path)
-                true
-            } catch (e: Exception) {
-                false
-            }
-            if (found) return path
+            if (localGit.readFile(path) != null) return path
         }
         return null
     }
@@ -159,14 +118,14 @@ class RepositoryClient(
         resolveWikiLink(owner, repo, branch, name)?.let { return WikiLinkResolution(it, created = false) }
         val folder = if (journalNamePattern.matches(name)) "journals" else "pages"
         val path = "$folder/$name.md"
-        saveFile(owner, repo, branch, path, newContent = "", baseSha = null, commitMessage = commitMessage)
+        saveFile(owner, repo, branch, path, newContent = "", commitMessage = commitMessage)
         return WikiLinkResolution(path, created = true)
     }
 
     /**
      * All page names available for `#tag`/`[[wiki link]]` autocompletion: every `.md` file
      * (extension stripped) under `journals/` and `pages/`, deduplicated. Either folder missing
-     * or unreachable (e.g. offline with nothing cached) is treated as contributing no names.
+     * is treated as contributing no names.
      */
     suspend fun listPageNames(owner: String, repo: String, branch: String): List<String> {
         val names = mutableSetOf<String>()
@@ -176,7 +135,7 @@ class RepositoryClient(
                     .filter { it.type == "file" && it.name.endsWith(".md", ignoreCase = true) }
                     .mapTo(names) { it.name.removeSuffix(".md").removeSuffix(".MD") }
             } catch (e: Exception) {
-                // Folder doesn't exist, or offline with nothing cached — no pages from it.
+                // Folder doesn't exist — no pages from it.
             }
         }
         return names.sortedBy { it.lowercase() }
@@ -184,9 +143,8 @@ class RepositoryClient(
 
     /**
      * Paths of every page (under `journals/` or `pages/`, excluding [excludePath] itself) whose
-     * content links back to [targetName] via `#tag` or `[[wiki link]]`. Reads each candidate
-     * file's content (cache-first via [getFile]), so this is only as complete as whatever is
-     * already cached when fully offline — same degradation as [listPageNames].
+     * content links back to [targetName] via `#tag` or `[[wiki link]]`. Reads straight from the
+     * local working copy.
      */
     suspend fun findBacklinks(
         owner: String,
@@ -220,9 +178,10 @@ class RepositoryClient(
     }
 
     /**
-     * Queues the commit durably first, then makes one immediate attempt so the UI can report
-     * success right away when online. If that attempt fails, the change stays queued and is
-     * retried automatically in the background with exponential backoff (see [processDueChanges]).
+     * Writes and commits [newContent] to [path] locally (always succeeds instantly, even
+     * offline), then makes one immediate push attempt so the UI can report success right away
+     * when online. If the push fails, the commit stays local and is retried automatically in
+     * the background (see [retryPush]).
      */
     suspend fun saveFile(
         owner: String,
@@ -230,117 +189,73 @@ class RepositoryClient(
         branch: String,
         path: String,
         newContent: String,
-        baseSha: String?,
         commitMessage: String,
     ): SaveOutcome {
-        val change = PendingChange(
-            owner = owner,
-            repo = repo,
-            branch = branch,
-            path = path,
-            newContent = newContent,
-            baseSha = baseSha,
-            commitMessage = commitMessage,
-        )
-        pendingChanges.upsert(change)
-        val sha = attemptQueuedChange(owner, repo, branch, path)
-        return if (sha != null) SaveOutcome.Saved(sha) else SaveOutcome.Queued
+        val commit = localGit.writeAndCommit(path, newContent, commitMessage)
+        refreshUnpushedCommits()
+        val outcome = attemptPushNow()
+        return if (outcome is PushOutcome.Pushed) SaveOutcome.Saved(commit.sha) else SaveOutcome.Queued
     }
 
-    /**
-     * Attempts whichever [PendingChange] currently sits at [path], serialized against
-     * [processDueChanges] via [processingLock] so the immediate save here and a background
-     * retry can never both PUT the same path at once (which would 409 on the loser).
-     */
-    private suspend fun attemptQueuedChange(owner: String, repo: String, branch: String, path: String): String? =
-        processingLock.withLock {
-            val current = pendingChanges.find(owner, repo, branch, path) ?: return@withLock null
-            attemptChange(current)
-        }
-
-    suspend fun listPendingChanges(): List<PendingChange> = pendingChanges.all()
-
-    suspend fun discardPendingChange(change: PendingChange) {
-        pendingChanges.remove(change.owner, change.repo, change.branch, change.path)
+    /** Discards every not-yet-pushed local commit, resetting to match the remote branch. */
+    suspend fun discardAllUnpushedChanges() {
+        localGit.discardAllUnpushed()
+        refreshUnpushedCommits()
     }
 
     suspend fun listCallLog(): List<CallLogEntry> = callLog.all()
 
-    /** Attempts every queued change whose backoff has elapsed. Safe to call concurrently. */
-    suspend fun processDueChanges() {
-        if (!processingLock.tryLock()) return
+    /** Attempts a push if one isn't already in progress; skips (rather than waiting) otherwise. Safe to call concurrently. */
+    suspend fun retryPush() {
+        if (!pushLock.tryLock()) return
         try {
-            val now = nowMillis()
-            for (change in pendingChanges.all()) {
-                if (change.nextAttemptAtMillis > now) continue
-                // Re-fetch in case it was discarded or updated concurrently since the loop started.
-                val current = pendingChanges.find(change.owner, change.repo, change.branch, change.path) ?: continue
-                attemptChange(current)
-            }
+            doPush()
         } finally {
-            processingLock.unlock()
+            pushLock.unlock()
         }
     }
 
-    /** Makes one attempt at [change]. Returns the new sha on success, or null if it's still queued. */
-    private suspend fun attemptChange(change: PendingChange): String? {
-        return try {
-            api.updateFile(
-                change.owner,
-                change.repo,
-                change.path,
-                change.branch,
-                change.commitMessage,
-                change.newContent,
-                change.baseSha,
-            )
-            val refreshed = api.getFile(change.owner, change.repo, change.path, change.branch)
-            cache.putFile(change.owner, change.repo, change.branch, change.path, refreshed)
-            // The parent folder's cached listing may now be missing (or stale for) this file.
-            cache.removeListing(change.owner, change.repo, change.branch, change.path.substringBeforeLast('/', ""))
-            pendingChanges.remove(change.owner, change.repo, change.branch, change.path)
-            callLog.record(
-                CallLogEntry(
-                    timestampMillis = nowMillis(),
-                    path = change.path,
-                    outcome = CallOutcome.SUCCESS,
-                    message = "Saved (${refreshed.sha.take(7)})",
-                )
-            )
-            refreshed.sha
+    /** Attempts a push, waiting for any in-progress attempt first, so this and [retryPush] never race. */
+    private suspend fun attemptPushNow(): PushOutcome = pushLock.withLock { doPush() }
+
+    /**
+     * Pulls (fetching and auto-merging any remote-only commits) before pushing, so a push
+     * that would otherwise be rejected as non-fast-forward (the remote moved on since our
+     * last pull) instead merges locally first. A real merge conflict is reported as a push
+     * failure rather than attempted automatically.
+     */
+    private suspend fun doPush(): PushOutcome {
+        try {
+            when (val pullResult = localGit.pull()) {
+                is PullOutcome.ConflictsNeedResolution -> {
+                    val message = "Couldn't merge remote changes automatically: ${pullResult.message}"
+                    AppLog.e(message)
+                    callLog.record(CallLogEntry(nowMillis(), repoLabel, CallOutcome.FAILURE, message))
+                    return PushOutcome.Failed(message)
+                }
+                is PullOutcome.Failed ->
+                    AppLog.e("Pull before push failed for $repoLabel: ${pullResult.message}")
+                PullOutcome.UpToDate, PullOutcome.FastForwarded, PullOutcome.Merged -> Unit
+            }
         } catch (e: Exception) {
-            val message = if (e is GitHubApiException) {
-                "${e.message} (HTTP ${e.statusCode})"
-            } else {
-                e.message ?: "Network error"
-            }
-            AppLog.e("Save failed for ${change.path}", e)
-            callLog.record(
-                CallLogEntry(
-                    timestampMillis = nowMillis(),
-                    path = change.path,
-                    outcome = CallOutcome.FAILURE,
-                    message = message,
-                )
-            )
-            // A create (no baseSha) that 409s means the file already exists — most likely another
-            // in-flight create won the race. Adopt its current sha so the next retry updates it
-            // instead of repeating the same create and 409ing forever.
-            val recoveredSha = if (change.baseSha == null && e is GitHubApiException && e.statusCode == 409) {
-                runCatching { api.getFile(change.owner, change.repo, change.path, change.branch).sha }.getOrNull()
-            } else {
-                null
-            }
-            val attempts = change.attempts + 1
-            pendingChanges.upsert(
-                change.copy(
-                    baseSha = recoveredSha ?: change.baseSha,
-                    attempts = attempts,
-                    nextAttemptAtMillis = nowMillis() + backoffMillis(attempts),
-                    lastError = message,
-                )
-            )
-            null
+            AppLog.e("Pull before push failed for $repoLabel", e)
         }
+
+        val outcome = try {
+            localGit.push()
+        } catch (e: Exception) {
+            AppLog.e("Push failed for $repoLabel", e)
+            PushOutcome.Failed(e.message ?: "Push failed")
+        }
+        refreshUnpushedCommits()
+        when (outcome) {
+            PushOutcome.NothingToPush -> Unit
+            PushOutcome.Pushed -> callLog.record(CallLogEntry(nowMillis(), repoLabel, CallOutcome.SUCCESS, "Pushed"))
+            is PushOutcome.Rejected ->
+                callLog.record(CallLogEntry(nowMillis(), repoLabel, CallOutcome.FAILURE, outcome.message))
+            is PushOutcome.Failed ->
+                callLog.record(CallLogEntry(nowMillis(), repoLabel, CallOutcome.FAILURE, outcome.message))
+        }
+        return outcome
     }
 }

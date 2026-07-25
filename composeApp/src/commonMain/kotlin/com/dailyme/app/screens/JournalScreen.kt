@@ -86,7 +86,6 @@ fun JournalScreen(state: AppState, repositoryClient: RepositoryClient, appSettin
                     branch = state.branch,
                     path = path,
                     newContent = "",
-                    baseSha = null,
                     commitMessage = appSettings.buildCommitMessage(fileName),
                 )
                 state.push(Screen.FileView(path, startInEditMode = true))

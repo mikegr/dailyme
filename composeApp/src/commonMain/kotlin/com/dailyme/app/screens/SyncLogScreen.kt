@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -34,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.dailyme.app.AppState
 import com.dailyme.app.CallLogEntry
 import com.dailyme.app.CallOutcome
-import com.dailyme.app.PendingChange
+import com.dailyme.app.CommitInfo
 import com.dailyme.app.RepositoryClient
 import com.dailyme.app.theme.cyanicTopAppBarColors
 import kotlin.time.Clock
@@ -59,16 +60,30 @@ private fun formatRelative(nowMillis: Long, targetMillis: Long): String {
 
 @Composable
 fun SyncLogScreen(state: AppState, repositoryClient: RepositoryClient) {
-    val pending by repositoryClient.pendingChangeList.collectAsState()
+    val unpushed by repositoryClient.unpushedCommits.collectAsState()
     val log by repositoryClient.callLogEntries.collectAsState()
     val scope = rememberCoroutineScope()
     var now by remember { mutableLongStateOf(nowMillis()) }
+    var showDiscardConfirm by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         while (true) {
             delay(1000)
             now = nowMillis()
         }
+    }
+
+    if (showDiscardConfirm) {
+        ConfirmDialog(
+            title = "Discard all local changes?",
+            text = "This resets to match the last-pushed version, discarding every commit still waiting to sync.",
+            confirmLabel = "Discard",
+            onConfirm = {
+                showDiscardConfirm = false
+                scope.launch { repositoryClient.discardAllUnpushedChanges() }
+            },
+            onDismiss = { showDiscardConfirm = false },
+        )
     }
 
     Scaffold(
@@ -86,14 +101,20 @@ fun SyncLogScreen(state: AppState, repositoryClient: RepositoryClient) {
     ) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
             item {
-                Text(
-                    "Pending",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(16.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("Pending", style = MaterialTheme.typography.titleMedium)
+                    if (unpushed.isNotEmpty()) {
+                        TextButton(onClick = { showDiscardConfirm = true }) {
+                            Text("Discard all")
+                        }
+                    }
+                }
             }
 
-            if (pending.isEmpty()) {
+            if (unpushed.isEmpty()) {
                 item {
                     Text(
                         "Nothing waiting to sync.",
@@ -103,10 +124,8 @@ fun SyncLogScreen(state: AppState, repositoryClient: RepositoryClient) {
                     )
                 }
             } else {
-                items(pending, key = { "${it.owner}/${it.repo}/${it.branch}/${it.path}" }) { change ->
-                    PendingChangeRow(change, now) {
-                        scope.launch { repositoryClient.discardPendingChange(change) }
-                    }
+                items(unpushed, key = { it.sha }) { commit ->
+                    UnpushedCommitRow(commit, now)
                     HorizontalDivider()
                 }
             }
@@ -139,25 +158,14 @@ fun SyncLogScreen(state: AppState, repositoryClient: RepositoryClient) {
 }
 
 @Composable
-private fun PendingChangeRow(change: PendingChange, now: Long, onDiscard: () -> Unit) {
+private fun UnpushedCommitRow(commit: CommitInfo, now: Long) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-        Text("${change.owner}/${change.repo} — ${change.path}", style = MaterialTheme.typography.titleMedium)
+        Text(commit.message, style = MaterialTheme.typography.titleMedium)
         Text(
-            if (change.attempts == 0) {
-                "Waiting to sync"
-            } else {
-                "Attempt ${change.attempts} failed — retrying ${formatRelative(now, change.nextAttemptAtMillis)}"
-            },
+            "Committed ${formatRelative(now, commit.timestampMillis)} — not yet pushed",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        change.lastError?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-        }
-        Text(change.commitMessage, style = MaterialTheme.typography.bodySmall)
-        TextButton(onClick = onDiscard) {
-            Text("Discard change")
-        }
     }
 }
 

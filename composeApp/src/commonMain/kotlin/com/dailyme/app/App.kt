@@ -35,20 +35,17 @@ import com.dailyme.app.theme.DailyMeTheme
 @Composable
 fun App() {
     val credentialsStore = remember { createCredentialsStore() }
-    val client = remember { createHttpClient() }
-    val api = remember { GitHubApi(client) { credentialsStore.load()?.token } }
     val keyValueStore = remember { createKeyValueStore() }
-    val offlineCache = remember { OfflineCache(keyValueStore) }
-    val pendingChangeQueue = remember { PendingChangeQueue(keyValueStore) }
+    val localGit = remember { createLocalGitRepository { credentialsStore.load()?.token } }
     val callLog = remember { CallLog(keyValueStore) }
-    val repositoryClient = remember { RepositoryClient(api, offlineCache, pendingChangeQueue, callLog) }
+    val repositoryClient = remember { RepositoryClient(localGit, callLog) }
     val appSettings = remember { AppSettings(keyValueStore) }
     val networkMonitor = remember { createNetworkMonitor() }
     val state = remember { AppState() }
     var isRestoringSession by remember { mutableStateOf(true) }
 
     val isOnline by networkMonitor.isOnline.collectAsState()
-    val pendingList by repositoryClient.pendingChangeList.collectAsState()
+    val unpushedCommits by repositoryClient.unpushedCommits.collectAsState()
     val themeMode by appSettings.themeMode.collectAsState()
 
     DailyMeTheme(
@@ -66,17 +63,20 @@ fun App() {
                 state.branch = stored.branch
                 state.isLoggedIn = true
             }
-            repositoryClient.refreshPendingChanges()
             appSettings.ensureLoaded()
-            isRestoringSession = false
             if (stored != null) {
-                repositoryClient.refreshCacheValidity(stored.owner, stored.repo, stored.branch)
+                try {
+                    repositoryClient.ensureRepositoryReady(stored.owner, stored.repo, stored.branch)
+                } catch (e: Exception) {
+                    AppLog.e("Failed to prepare local repository at startup", e)
+                }
             }
-            repositoryClient.processDueChanges()
+            isRestoringSession = false
+            repositoryClient.retryPush()
         }
 
         LaunchedEffect(isOnline) {
-            if (isOnline) repositoryClient.processDueChanges()
+            if (isOnline) repositoryClient.retryPush()
         }
 
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -99,7 +99,7 @@ fun App() {
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
-                    } else if (pendingList.isNotEmpty()) {
+                    } else if (unpushedCommits.isNotEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -107,7 +107,7 @@ fun App() {
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                         ) {
                             Text(
-                                "Syncing ${pendingList.size} pending change(s)…",
+                                "Syncing ${unpushedCommits.size} commit(s)…",
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 style = MaterialTheme.typography.bodySmall,
                             )
@@ -125,7 +125,7 @@ fun App() {
                                 }
 
                                 is Screen.Login -> NavEntry(screen) {
-                                    LoginScreen(state, credentialsStore) {
+                                    LoginScreen(state, credentialsStore, repositoryClient) {
                                         state.isLoggedIn = true
                                         state.pop()
                                     }

@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import com.dailyme.app.AppLog
 import com.dailyme.app.AppSettings
 import com.dailyme.app.AppState
-import com.dailyme.app.GitHubApiException
 import com.dailyme.app.LinkTrigger
 import com.dailyme.app.MarkdownView
 import com.dailyme.app.RepositoryClient
@@ -57,9 +56,7 @@ import com.dailyme.app.theme.cyanicTopAppBarColors
 import kotlinx.coroutines.launch
 
 private data class LoadedFile(
-    val sha: String?,
     val content: String,
-    val isFromCache: Boolean,
     val hasPendingChange: Boolean,
 )
 
@@ -88,11 +85,8 @@ fun FileViewScreen(
         loaded = null
         try {
             val result = repositoryClient.getFile(state.owner, state.repo, state.branch, path)
-            loaded = LoadedFile(result.sha, result.content, result.isFromCache, result.hasPendingChange)
+            loaded = LoadedFile(result.content, result.hasPendingChange)
             editedText = TextFieldValue(result.content)
-        } catch (e: GitHubApiException) {
-            error = e.message
-            AppLog.e("Failed to load $path", e)
         } catch (e: Exception) {
             error = e.message ?: "Failed to load file."
             AppLog.e("Failed to load $path", e)
@@ -130,18 +124,17 @@ fun FileViewScreen(
                     branch = state.branch,
                     path = path,
                     newContent = editedText.text,
-                    baseSha = current.sha,
                     commitMessage = message,
                 )
                 when (outcome) {
                     is SaveOutcome.Saved -> {
-                        loaded = LoadedFile(outcome.sha, editedText.text, isFromCache = false, hasPendingChange = false)
+                        loaded = LoadedFile(editedText.text, hasPendingChange = false)
                         snackbarHostState.showSnackbar("Saved to GitHub")
                     }
 
                     SaveOutcome.Queued -> {
-                        loaded = LoadedFile(current.sha, editedText.text, isFromCache = false, hasPendingChange = true)
-                        snackbarHostState.showSnackbar("Offline — change queued, will sync when back online")
+                        loaded = LoadedFile(editedText.text, hasPendingChange = true)
+                        snackbarHostState.showSnackbar("Offline — change committed locally, will push when back online")
                     }
                 }
                 isEditing = false
@@ -270,14 +263,9 @@ fun FileViewScreen(
                         .verticalScroll(rememberScrollState())
                         .clickable(onClick = { isEditing = true; activeTrigger = null }),
                 ) {
-                    val statusText = when {
-                        loaded?.hasPendingChange == true -> "Not yet synced to GitHub"
-                        loaded?.isFromCache == true -> "Showing cached copy"
-                        else -> null
-                    }
-                    if (statusText != null) {
+                    if (loaded?.hasPendingChange == true) {
                         Text(
-                            statusText,
+                            "Committed locally — not yet pushed",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
